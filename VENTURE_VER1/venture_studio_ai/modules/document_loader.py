@@ -59,6 +59,33 @@ def _extract_xlsx(file_path: Path) -> str:
         return f"[XLSX read error: {e}]"
 
 
+def _extract_pptx(file_path: Path) -> str:
+    try:
+        from pptx import Presentation
+        prs = Presentation(str(file_path))
+        parts = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    parts.append(shape.text_frame.text)
+        return "\n".join(parts)
+    except ImportError:
+        return f"[PPTX extraction unavailable — install python-pptx] {file_path.name}"
+    except Exception as e:
+        return f"[PPTX read error: {e}]"
+
+
+def _extract_rtf(file_path: Path) -> str:
+    try:
+        from striprtf.striprtf import rtf_to_text
+        raw = file_path.read_text(encoding="utf-8", errors="ignore")
+        return rtf_to_text(raw)
+    except ImportError:
+        return f"[RTF extraction unavailable — install striprtf] {file_path.name}"
+    except Exception as e:
+        return f"[RTF read error: {e}]"
+
+
 EXTRACTORS = {
     ".txt": _extract_txt,
     ".md": _extract_txt,
@@ -66,6 +93,8 @@ EXTRACTORS = {
     ".docx": _extract_docx,
     ".csv": _extract_csv,
     ".xlsx": _extract_xlsx,
+    ".rtf": _extract_rtf,
+    ".pptx": _extract_pptx,
 }
 
 

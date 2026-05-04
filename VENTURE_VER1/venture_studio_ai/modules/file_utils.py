@@ -12,7 +12,7 @@ def save_uploaded_file(uploaded_file, data_dir: Path) -> str:
     return str(out_path)
 
 
-SUPPORTED_EXTENSIONS = ("*.pdf", "*.txt", "*.docx", "*.md", "*.csv", "*.xlsx")
+SUPPORTED_EXTENSIONS = ("*.pdf", "*.txt", "*.docx", "*.md", "*.csv", "*.xlsx", "*.rtf", "*.pptx")
 
 
 def list_files(data_dir: Path, patterns=SUPPORTED_EXTENSIONS):

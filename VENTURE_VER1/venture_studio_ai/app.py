@@ -189,6 +189,7 @@ with tab_standard:
                 use_founder=use_founder,
                 use_company=use_company,
                 use_templates=use_templates,
+                selected_company=company,
             )
             prompt = prompt_builder.build_prompt(
                 company_profile=_profile,
