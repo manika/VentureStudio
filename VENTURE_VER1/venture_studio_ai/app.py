@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -26,27 +27,42 @@ from modules.pdf_generator import (
 )
 
 # ---------------------------------------------------------------------------
-# Logo
+# Page config + global CSS
+# ---------------------------------------------------------------------------
+st.set_page_config(page_title=APP_TITLE, layout="wide")
+
+st.markdown("""
+<style>
+.profile-banner {
+    background: #EAF0FB;
+    border-left: 4px solid #1E4D8C;
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    color: #1A1A2E;
+}
+.stButton > button { border-radius: 6px; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Sidebar — Logo
 # ---------------------------------------------------------------------------
 _logo_path = Path(__file__).parent / "assets" / "logo.svg"
 if _logo_path.exists():
     _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
-    _logo_html = (
+    st.sidebar.markdown(
         f'<img src="data:image/svg+xml;base64,{_logo_b64}" '
-        f'style="width:100%; max-width:320px; margin-bottom:8px;">'
+        f'style="width:100%; max-width:240px; margin-bottom:12px;">',
+        unsafe_allow_html=True,
     )
 else:
-    _logo_html = f"<h2>{APP_TITLE}</h2>"
-
-st.set_page_config(page_title=APP_TITLE, layout="wide")
-st.markdown(_logo_html, unsafe_allow_html=True)
+    st.sidebar.markdown(f"## {APP_TITLE}")
 
 # ---------------------------------------------------------------------------
-# Sidebar — Settings (original)
+# Sidebar — Company selector
 # ---------------------------------------------------------------------------
-st.sidebar.header("Settings")
-
-# Auto-discover company folders; map folder names to display names
 _COMPANY_DISPLAY_NAMES = {
     "company_a": "Kytosan Bio",
     "Example Med Device Co": "Example Med Device Co",
@@ -58,101 +74,114 @@ _company_labels = [_COMPANY_DISPLAY_NAMES.get(c, c) for c in _company_options]
 _company_label = st.sidebar.selectbox("Company", options=_company_labels)
 company = _company_options[_company_labels.index(_company_label)]
 
-# When the selected company changes, reset the company name fields so they
-# reflect the new selection rather than keeping a stale manually-typed value.
 if st.session_state.get("_last_company") != _company_label:
     st.session_state["_last_company"] = _company_label
-    st.session_state["std_company_name"] = _company_label
-    st.session_state["gr_company_name"] = _company_label
-    st.session_state["doc_company_name"] = _company_label
-use_founder = st.sidebar.checkbox("Founder Startup Knowledge", value=True)
-use_company = st.sidebar.checkbox("Selected Company Data", value=True)
-use_templates = st.sidebar.checkbox("Shared Templates", value=True)
-mode = st.sidebar.selectbox(
-    "Mode",
-    options=["Ask a Question", "Generate Template", "Analyze Document", "Strategic Advice"],
-)
-uploaded_file = st.sidebar.file_uploader("Upload a document", type=["pdf", "txt", "docx"])
-if uploaded_file is not None:
-    saved = file_utils.save_uploaded_file(uploaded_file, DATA_DIR)
-    st.sidebar.success(f"Saved {saved}")
-
-if st.sidebar.button("Rebuild Index"):
-    with st.spinner("Rebuilding index..."):
-        document_loader.build_index(DATA_DIR)
-        st.sidebar.success("Index rebuilt")
-
-# Sidebar caption: model info (non-editable)
-st.sidebar.caption("Fast model: qwen2.5:3b\nReasoning model: qwen3.5:latest")
+    st.session_state["profile_company_name"] = _company_label
 
 # ---------------------------------------------------------------------------
-# Sidebar — Search Index
+# Sidebar — Company Profile (shared across all tabs)
 # ---------------------------------------------------------------------------
 st.sidebar.markdown("---")
-st.sidebar.header("Search Index")
-index_folder = st.sidebar.text_input("Folder to Index", value=str(PARENT_COMPANY_RAW_DIR))
+st.sidebar.markdown("**Company Profile**")
 
-if st.sidebar.button("Build / Rebuild Index"):
-    _index_messages = []
+if "profile_company_name" not in st.session_state:
+    st.session_state["profile_company_name"] = _company_label
 
-    def _index_progress(msg: str):
-        _index_messages.append(msg)
+company_name = st.sidebar.text_input("Company name", key="profile_company_name")
+stage = st.sidebar.selectbox(
+    "Stage", options=["Idea", "Prototype", "Seed", "Growth"], index=1, key="profile_stage"
+)
+product_type = st.sidebar.text_input(
+    "Product type", "Medical Device", key="profile_product_type"
+)
+regulatory = st.sidebar.text_input("Regulatory area", "FDA / Quality System", key="profile_regulatory")
+notes = st.sidebar.text_area(
+    "Notes/context", "Small team preparing early quality documentation",
+    key="profile_notes", height=80,
+)
 
-    with st.spinner("Building search index..."):
-        _index_result = fast_indexer.index_folder(index_folder, progress_callback=_index_progress)
+_profile = {
+    "name": company_name,
+    "stage": stage,
+    "product_type": product_type,
+    "regulatory": regulatory,
+    "notes": notes,
+}
+_profile_banner = (
+    f'<div class="profile-banner">'
+    f'Profile: <strong>{company_name}</strong> &nbsp;·&nbsp; {stage} &nbsp;·&nbsp; {product_type}'
+    f'</div>'
+)
 
-    st.sidebar.success(
-        f"Index built: {_index_result.get('files_processed', 0)} files, "
-        f"{_index_result.get('chunks_added', 0)} chunks added, "
-        f"{_index_result.get('files_skipped', 0)} skipped"
-    )
-    with st.sidebar.expander("Index log"):
-        st.text("\n".join(_index_messages))
+# ---------------------------------------------------------------------------
+# Sidebar — Knowledge Sources
+# ---------------------------------------------------------------------------
+st.sidebar.markdown("---")
+with st.sidebar.expander("Knowledge Sources", expanded=True):
+    use_founder = st.checkbox("Founder Startup Knowledge", value=True)
+    use_company = st.checkbox("Selected Company Data", value=True)
+    use_templates = st.checkbox("Shared Templates", value=True)
+    uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt", "docx"])
+    if uploaded_file is not None:
+        saved = file_utils.save_uploaded_file(uploaded_file, DATA_DIR)
+        st.success(f"Saved {saved}")
+    _index_store = ChromaStore()
+    _index_stats = _index_store.get_stats()
+    _index_chunk_count = _index_stats.get("chunks", _index_stats.get("documents", 0))
+    if _index_chunk_count > 0:
+        st.caption(f"Search index: {_index_chunk_count} chunks · {_index_stats.get('type', 'unknown')}")
 
-# Show index stats (chunk count from ChromaStore)
-_index_store = ChromaStore()
-_index_stats = _index_store.get_stats()
-_index_chunk_count = _index_stats.get("chunks", _index_stats.get("documents", 0))
-if _index_chunk_count > 0:
-    st.sidebar.markdown(f"**Index:** {_index_chunk_count} chunks | {_index_stats.get('type', 'unknown')}")
+# ---------------------------------------------------------------------------
+# Sidebar — Index Management
+# ---------------------------------------------------------------------------
+with st.sidebar.expander("Index Management", expanded=False):
+    if st.button("Rebuild Document Index"):
+        with st.spinner("Rebuilding..."):
+            document_loader.build_index(DATA_DIR)
+            st.success("Document index rebuilt")
 
+    index_folder = st.text_input("Folder to index", value=str(PARENT_COMPANY_RAW_DIR))
+    if st.button("Rebuild Search Index"):
+        _index_messages = []
+
+        def _index_progress(msg: str):
+            _index_messages.append(msg)
+
+        with st.spinner("Building search index..."):
+            _index_result = fast_indexer.index_folder(index_folder, progress_callback=_index_progress)
+
+        st.success(
+            f"{_index_result.get('files_processed', 0)} files, "
+            f"{_index_result.get('chunks_added', 0)} chunks added, "
+            f"{_index_result.get('files_skipped', 0)} skipped"
+        )
+        with st.expander("Index log"):
+            st.text("\n".join(_index_messages))
+
+# ---------------------------------------------------------------------------
+# Sidebar — Advanced
+# ---------------------------------------------------------------------------
+st.sidebar.markdown("---")
 debug_mode = st.sidebar.checkbox("Debug Mode", value=False)
-
+st.sidebar.caption("Fast model: qwen2.5:3b\nReasoning model: qwen3.5:latest")
 
 # ---------------------------------------------------------------------------
 # Main — Tabs
 # ---------------------------------------------------------------------------
 tab_standard, tab_smart, tab_docs = st.tabs(["Standard Advisor", "Smart Advisor", "Generate Documents"])
 
-# ===== TAB 1: Standard Advisor (original content) =====
+# ===== TAB 1: Standard Advisor =====
 with tab_standard:
-    st.subheader("Company Info")
-    col1, col2 = st.columns(2)
-    with col1:
-        if "std_company_name" not in st.session_state:
-            st.session_state["std_company_name"] = _company_label
-        company_name = st.text_input("Company name", key="std_company_name")
-        stage = st.selectbox(
-            "Stage", options=["Idea", "Prototype", "Seed", "Growth"], index=1, key="std_stage"
-        )
-    with col2:
-        product_type = st.text_input(
-            "Product type", "Software-enabled medical device", key="std_product_type"
-        )
-        regulatory = st.text_input("Regulatory area", "FDA / Quality System", key="std_regulatory")
+    st.markdown(_profile_banner, unsafe_allow_html=True)
 
-    notes = st.text_area(
-        "Notes/context", "Small team preparing early quality documentation", key="std_notes"
-    )
-
-    st.subheader("User Question / Task")
     user_query = st.text_area(
         "Describe your question or task",
         "Create a first draft checklist for setting up a basic quality management process using my prior startup experience as reference.",
         key="std_query",
+        height=100,
     )
 
-    if st.button("Run", key="std_run"):
+    if st.button("Run", key="std_run", type="primary"):
         with st.spinner("Running advisor..."):
             docs = retrieval.retrieve_context(
                 query=user_query,
@@ -162,13 +191,7 @@ with tab_standard:
                 use_templates=use_templates,
             )
             prompt = prompt_builder.build_prompt(
-                company_profile={
-                    "name": company_name,
-                    "stage": stage,
-                    "product_type": product_type,
-                    "regulatory": regulatory,
-                    "notes": notes,
-                },
+                company_profile=_profile,
                 user_query=user_query,
                 retrieved_docs=docs,
             )
@@ -178,51 +201,22 @@ with tab_standard:
 
 # ===== TAB 2: Smart Advisor =====
 with tab_smart:
-    st.subheader("Smart Advisor")
+    st.markdown(_profile_banner, unsafe_allow_html=True)
     st.caption(
         "Semantic search over the indexed parent company knowledge base. "
         "All data is redacted before LLM processing. Single Qwen call per query."
     )
 
-    # Company profile for Smart Advisor
-    st.markdown("#### Company Profile")
-    gc1, gc2 = st.columns(2)
-    with gc1:
-        if "gr_company_name" not in st.session_state:
-            st.session_state["gr_company_name"] = _company_label
-        gr_company_name = st.text_input("Company name", key="gr_company_name")
-        gr_stage = st.selectbox(
-            "Stage", options=["Idea", "Prototype", "Seed", "Growth"], index=1, key="gr_stage"
-        )
-    with gc2:
-        gr_product_type = st.text_input(
-            "Product type", "Software-enabled medical device", key="gr_product_type"
-        )
-        gr_regulatory = st.text_input(
-            "Regulatory area", "FDA / Quality System", key="gr_regulatory"
-        )
-
-    gr_notes = st.text_area(
-        "Notes/context", "Small team preparing early quality documentation", key="gr_notes"
-    )
-
-    st.markdown("#### Advisory Question")
     gr_query = st.text_area(
         "Describe your question or task",
         "What quality management practices from prior experience can we adapt for our new startup?",
         key="gr_query",
+        height=100,
     )
 
-    if st.button("Ask Smart Advisor", key="gr_run"):
+    if st.button("Ask Smart Advisor", key="gr_run", type="primary"):
         with st.spinner("Searching knowledge base and generating response..."):
-            gr_profile = {
-                "name": gr_company_name,
-                "stage": gr_stage,
-                "product_type": gr_product_type,
-                "regulatory": gr_regulatory,
-                "notes": gr_notes,
-            }
-            sa_response, sa_meta = smart_advisor.ask(gr_query, gr_profile)
+            sa_response, sa_meta = smart_advisor.ask(gr_query, _profile)
 
         st.markdown(sa_response)
 
@@ -238,36 +232,22 @@ with tab_smart:
 
 # ===== TAB 3: Generate Documents =====
 with tab_docs:
-    st.subheader("Generate Documents")
+    st.markdown(_profile_banner, unsafe_allow_html=True)
     st.caption("Generate professional regulatory documents as downloadable PDFs using parent company knowledge + AI.")
 
     dc1, dc2 = st.columns(2)
     with dc1:
-        if "doc_company_name" not in st.session_state:
-            st.session_state["doc_company_name"] = _company_label
-        doc_company_name = st.text_input("Company name", key="doc_company_name")
-        doc_stage = st.selectbox("Stage", options=["Idea", "Prototype", "Seed", "Growth"],
-                                  index=1, key="doc_stage")
         doc_type = st.selectbox("Document Type", options=list(DOC_TYPES.keys()), key="doc_type")
         output_format = st.selectbox(
             "Output Format", ["PDF", "Word (.docx)", "Excel (.xlsx)"], key="output_format"
         )
     with dc2:
-        doc_product = st.text_input("Product type", "Antimicrobial wound dressing (Chitosan)",
-                                     key="doc_product")
-        doc_regulatory = st.text_input("Regulatory scope",
-                                        "FDA 21 CFR Part 820 / ISO 13485 / EU MDR",
-                                        key="doc_regulatory")
+        gen_mode = st.radio(
+            "Generation Mode",
+            ["Quick Template (30 sec)", "Comprehensive Document (8–12 min)"],
+            key="gen_mode",
+        )
 
-    doc_notes = st.text_area("Additional context",
-                              "Class II medical device. Sterile, single-use wound dressing.",
-                              key="doc_notes")
-
-    gen_mode = st.radio(
-        "Generation Mode",
-        ["Quick Template (30 sec)", "Comprehensive Document (8–12 min)"],
-        key="gen_mode",
-    )
     if gen_mode == "Comprehensive Document (8–12 min)":
         st.warning(
             "Comprehensive mode generates each section individually using the parent company "
@@ -275,17 +255,9 @@ with tab_docs:
         )
 
     if st.button("Generate Document", key="doc_generate", type="primary"):
-        profile = {
-            "name": doc_company_name,
-            "stage": doc_stage,
-            "product_type": doc_product,
-            "regulatory": doc_regulatory,
-            "notes": doc_notes,
-        }
-
         progress_placeholder = st.empty()
         progress_log = []
-        _doc_sources: list[str] = []  # source files used during generation
+        _doc_sources: list[str] = []
 
         def _doc_progress(msg):
             progress_log.append(msg)
@@ -297,7 +269,7 @@ with tab_docs:
             with st.spinner(f"Generating {doc_type} as Word document..."):
                 doc_bytes, filename = generate_word_doc(
                     doc_type=doc_type,
-                    company_profile=profile,
+                    company_profile=_profile,
                     comprehensive=is_comprehensive,
                     progress_callback=_doc_progress,
                 )
@@ -309,7 +281,7 @@ with tab_docs:
             with st.spinner(f"Generating {doc_type} as Excel workbook..."):
                 doc_bytes, filename = generate_excel_doc(
                     doc_type=doc_type,
-                    company_profile=profile,
+                    company_profile=_profile,
                     progress_callback=_doc_progress,
                 )
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -320,7 +292,7 @@ with tab_docs:
                 with st.spinner(f"Generating comprehensive {doc_type} — please wait..."):
                     doc_bytes, filename = generate_comprehensive_pdf(
                         doc_type=doc_type,
-                        company_profile=profile,
+                        company_profile=_profile,
                         progress_callback=_doc_progress,
                     )
                 _doc_sources = [DOC_REFERENCE_PATHS.get(doc_type, IMBED_QM_PATH)]
@@ -330,18 +302,17 @@ with tab_docs:
                     try:
                         store = ChromaStore()
                         _chroma_results = store.query(
-                            f"{doc_type} {doc_product} {doc_regulatory}", top_k=5
+                            f"{doc_type} {product_type} {regulatory}", top_k=5
                         )
                     except Exception:
                         pass
                     context_chunks = [r.get("text", "") for r in _chroma_results if r.get("text")]
                     doc_bytes, filename = generate_pdf(
                         doc_type=doc_type,
-                        company_profile=profile,
+                        company_profile=_profile,
                         context_chunks=context_chunks,
                         progress_callback=_doc_progress,
                     )
-                # Collect unique source paths from ChromaStore results
                 seen = set()
                 for r in _chroma_results:
                     src = r.get("source") or r.get("path", "")
@@ -360,13 +331,11 @@ with tab_docs:
             key="doc_download",
         )
 
-        # Show referenced source documents
         if _doc_sources:
             with st.expander("Source Documents Referenced", expanded=True):
                 for src in _doc_sources:
-                    from pathlib import Path as _Path
-                    label = _Path(src).name if not src.startswith("Static") else src
-                    parent = str(_Path(src).parent) if not src.startswith("Static") else ""
+                    label = Path(src).name if not src.startswith("Static") else src
+                    parent = str(Path(src).parent) if not src.startswith("Static") else ""
                     st.markdown(f"**{label}**")
                     if parent:
                         st.caption(parent)
@@ -387,11 +356,18 @@ with tab_docs:
             ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }
+        _type_badge = {".pdf": "PDF", ".docx": "DOCX", ".xlsx": "XLSX"}
         for doc_path in all_files:
             mime = _mime_map.get(doc_path.suffix, "application/octet-stream")
+            badge = _type_badge.get(doc_path.suffix, doc_path.suffix.upper())
+            date_str = datetime.fromtimestamp(doc_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            col_name, col_date, col_badge, col_dl = st.columns([4, 2, 1, 2])
+            col_name.markdown(f"**{doc_path.name}**")
+            col_date.caption(date_str)
+            col_badge.caption(badge)
             with open(doc_path, "rb") as f:
-                st.download_button(
-                    label=f"Download: {doc_path.name}",
+                col_dl.download_button(
+                    label="Download",
                     data=f.read(),
                     file_name=doc_path.name,
                     mime=mime,
