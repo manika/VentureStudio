@@ -8,7 +8,7 @@ import logging
 from config import MAX_CHUNK_CHARS
 
 from .vector_store import ChromaStore
-from .llm_client import safe_generate
+from .llm_client import generate_reasoning
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +171,8 @@ If answering an advisory question, use these sections:
 
     # 6. Single LLM call
     try:
-        response_text = safe_generate(prompt)
+        # Use generate_reasoning for final advisory responses (do not use generate_fast)
+        response_text = generate_reasoning(prompt)
     except Exception as exc:
         logger.exception("smart_advisor LLM call failed")
         response_text = f"[Error] LLM call failed: {exc}"

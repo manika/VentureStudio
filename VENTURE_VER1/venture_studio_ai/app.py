@@ -82,6 +82,9 @@ if st.sidebar.button("Rebuild Index"):
         document_loader.build_index(DATA_DIR)
         st.sidebar.success("Index rebuilt")
 
+# Sidebar caption: model info (non-editable)
+st.sidebar.caption("Fast model: qwen2.5:3b\nReasoning model: qwen3.5:latest")
+
 # ---------------------------------------------------------------------------
 # Sidebar — Search Index
 # ---------------------------------------------------------------------------

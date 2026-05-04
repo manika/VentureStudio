@@ -6,7 +6,11 @@ import os
 DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
 
 # Ollama settings
-MODEL_NAME = "qwen2.5:3b"
+MODEL_FAST = "qwen2.5:3b"
+MODEL_REASONING = "qwen3.5:latest"
+
+# Backward compatibility
+MODEL_NAME = MODEL_REASONING
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 
 # Storage

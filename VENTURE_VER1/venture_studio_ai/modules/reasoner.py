@@ -8,7 +8,7 @@ from pathlib import Path
 
 from config import SAVE_PROMPT_LOGS, OUTPUTS_DIR
 from .prompt_builder import build_graphrag_prompt
-from .llm_client import safe_generate
+from .llm_client import generate_reasoning
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,8 @@ def reason(company_profile: dict, user_query: str, compact_context: str) -> str:
     if SAVE_PROMPT_LOGS:
         _save_prompt_log(prompt)
 
-    response = safe_generate(prompt)
+    # Use the reasoning-focused generation for final advisory responses
+    response = generate_reasoning(prompt)
     return response
 
 
