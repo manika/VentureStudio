@@ -9,6 +9,7 @@ from config import MAX_CHUNK_CHARS
 
 from .vector_store import ChromaStore
 from .llm_client import generate_reasoning
+from services.prompt_service import build_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -141,31 +142,11 @@ def ask(query: str, company_profile: dict, top_k: int = 8) -> tuple[str, dict]:
 
     # 5. Build prompt
     profile_text = _build_profile_text(company_profile)
-    prompt = f"""You are an expert advisor for medical device startups.
-You have access to redacted knowledge chunks from an experienced parent company's documents.
-
-IMPORTANT INSTRUCTIONS:
-- Source filenames (shown as "Source: filename") carry key context: document type, year, and subject.
-  Use the filename as evidence — e.g. "2024 Steri-Tek AEP Audit Report" tells you the audit year is 2024.
-- Dates, version numbers, and document numbers in the text are real facts — use them precisely.
-- Only treat [PLACEHOLDER] tags as redacted — do not invent placeholders yourself.
-- If the question is factual (dates, counts, names), answer directly and specifically.
-- If the question is advisory, give practical guidance with a recommended approach.
-
-## Company Profile
-{profile_text}
-
-## Knowledge Chunks (from parent company documents)
-{knowledge_block}
-
-## Question
-{query}
-
-Answer directly and specifically. If answering a factual question, lead with the specific fact (date, number, name).
-If answering an advisory question, use these sections:
-## Summary
-## Recommended Approach
-## Key Considerations"""
+    context = (
+        f"## Company Profile\n{profile_text}"
+        f"\n\n## Knowledge Chunks (from parent company documents)\n{knowledge_block}"
+    )
+    prompt = build_prompt(prompt_type="architect", task=query, context=context)
 
     input_chars = len(prompt)
 
