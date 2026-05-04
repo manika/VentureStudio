@@ -19,7 +19,7 @@ def generate_response(
     # Backward compatibility: legacy callers may pass max_tokens as second positional arg
     if isinstance(model, int):
         max_tokens = model
-        model = MODEL_NAME
+        model = MODEL_REASONING
 
     payload = {
         "model": model,
@@ -55,7 +55,7 @@ def safe_generate(
     # Backward compatibility: legacy callers may pass max_tokens as second positional arg
     if isinstance(model, int):
         max_tokens = model
-        model = MODEL_NAME
+        model = MODEL_REASONING
 
     if len(prompt) > MAX_INPUT_CHARS:
         prompt = prompt[:MAX_INPUT_CHARS] + "\n[Context trimmed for token limit]"

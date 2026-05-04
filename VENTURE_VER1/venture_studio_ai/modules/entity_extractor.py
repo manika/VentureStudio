@@ -5,7 +5,7 @@ Returns generalized, anonymized entity descriptions — no reconstruction of red
 
 import json
 import logging
-from .llm_client import safe_generate
+from .llm_client import generate_fast
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ Returns generalized, anonymized relationship descriptions.
 
 import json
 import logging
-from .llm_client import safe_generate
+from .llm_client import generate_fast
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def extract_relationships(chunk_text: str, source_doc: str = "") -> list:
         return []
 
     prompt = RELATIONSHIP_PROMPT_TEMPLATE.format(chunk=chunk_text[:2000])
-    raw = safe_generate(prompt, max_tokens=512)
+    raw = generate_fast(prompt, max_tokens=512)
 
     relationships = _parse_json_response(raw)
 
@@ -62,7 +62,7 @@ def extract_relationships(chunk_text: str, source_doc: str = "") -> list:
             f'[{{"source":"...", "target":"...", "relationship":"...", "evidence_summary":"..."}}].\n'
             f"Text: {chunk_text[:800]}\nJSON:"
         )
-        raw2 = safe_generate(retry_prompt, max_tokens=300)
+        raw2 = generate_fast(retry_prompt, max_tokens=300)
         relationships = _parse_json_response(raw2)
 
     result = []
