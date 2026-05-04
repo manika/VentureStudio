@@ -1,0 +1,16 @@
+streamlit
+requests
+python-dotenv
+numpy
+scikit-learn
+nltk
+python-magic
+python-docx
+pdfminer.six
+networkx
+chromadb
+langchain-community
+openpyxl
+pypdf
+pandas
+sentence-transformers

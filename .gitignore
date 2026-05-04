@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Company and parent company data — confidential
+VENTURE_VER1/data/companies/
+VENTURE_VER1/data/parent_company_raw/
+VENTURE_VER1/data/parent_company_redacted/
+VENTURE_VER1/data/shared_templates/
+
+# Generated / derived storage — rebuilt locally
+VENTURE_VER1/venture_studio_ai/storage/chroma_db/
+VENTURE_VER1/venture_studio_ai/storage/tfidf_store.pkl
+VENTURE_VER1/venture_studio_ai/storage/cache/
+
+# Generated output files
+VENTURE_VER1/venture_studio_ai/outputs/advisor_reports/
+VENTURE_VER1/venture_studio_ai/outputs/generalized_templates/
+VENTURE_VER1/venture_studio_ai/outputs/prompt_logs/

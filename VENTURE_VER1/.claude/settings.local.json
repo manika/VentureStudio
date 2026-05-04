@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/manika/My Drive/VentureStudio/.venv/bin/python3 *)",
+      "Bash(\"/Users/manika/My Drive/VentureStudio/.venv/bin/python3\" -c \"import docx; print\\('python-docx available'\\)\")"
+    ]
+  }
+}

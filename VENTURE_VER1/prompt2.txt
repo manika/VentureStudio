@@ -1,0 +1,549 @@
+You are an expert Python architect helping me extend my local-first Venture Studio AI Advisor.
+
+Your task is to implement a Stage 1 Local GraphRAG system for a parent-company knowledgebase.
+
+Do NOT over-engineer. Build incrementally. Prefer simple, working code over research-level complexity.
+
+## Current App
+
+I already have:
+
+- Streamlit dashboard
+- Modular Python project
+- Ollama installed locally
+- Local LLM: `qwen3.5:latest`
+- Local-first privacy requirement
+- No cloud LLM APIs
+
+## Main Goal
+
+Create a structured knowledge graph from a local internal parent-company folder containing:
+
+- PDF
+- Word
+- TXT
+- Markdown
+- CSV
+- Excel
+- flat files
+
+The system should use the parent-company knowledge as generalized experience to advise new portfolio companies.
+
+The system must hide proprietary information.
+
+## Important Implementation Rule
+
+Use these projects as inspiration only:
+
+- G-Retriever: https://github.com/xiaoxinhe/g-retriever
+- General-Reasoner: https://github.com/TIGER-AI-Lab/General-Reasoner
+
+Do NOT directly implement their CUDA/GPU-heavy training workflows in Stage 1.
+
+G-Retriever is a research framework for textual graph QA, and General-Reasoner is a training/reasoning framework, so for this Mac/local MVP, implement a lightweight GraphRAG version using LangChain, NetworkX, Chroma, and Qwen. 
+
+G-Retriever’s repo describes it as a retrieval-augmented generation framework for textual graph understanding and QA, so using it as architectural inspiration is appropriate. General-Reasoner is described as a reasoning training framework across domains, so it should not be treated as a simple app dependency for this MVP.
+
+## Stage 1 Architecture
+
+Implement this practical local pipeline:
+
+Parent Company Folder
+  ↓
+File Discovery
+  ↓
+Text Extraction
+  ↓
+Redaction
+  ↓
+Chunking
+  ↓
+Chunk Summary Cache
+  ↓
+Entity Extraction
+  ↓
+Relationship Extraction
+  ↓
+NetworkX Knowledge Graph
+  ↓
+Chroma Vector Store
+  ↓
+Graph + Vector Retrieval
+  ↓
+Qwen Reasoner
+  ↓
+Streamlit Output
+
+## Critical Privacy Rules
+
+Raw parent-company documents must never be sent to the LLM by default.
+
+In `config.py`:
+
+```python
+ALLOW_RAW_PARENT_DOCS_TO_LLM = False
+
+Default must remain False.
+The system must redact or generalize:
+	•	company names
+	•	people names
+	•	customer names
+	•	vendor names
+	•	investor names
+	•	emails
+	•	phone numbers
+	•	addresses
+	•	amounts
+	•	account numbers
+	•	contract IDs
+	•	project names
+	•	confidential terms
+	•	IP-specific claims
+	•	exact legal clauses
+	•	sensitive financial details
+Use placeholders such as:
+
+[COMPANY_NAME]
+[PERSON_NAME]
+[CUSTOMER_NAME]
+[VENDOR_NAME]
+[EMAIL]
+[PHONE]
+[ADDRESS]
+[AMOUNT]
+[DATE]
+[PROJECT_NAME]
+[CONTRACT_ID]
+[ACCOUNT_ID]
+[CONFIDENTIAL_TERM]
+
+The advisory output should use generalized patterns only.
+Stage 1 Scope
+Build only:
+	1	Local folder ingestion
+	2	Text extraction
+	3	Redaction
+	4	Chunking
+	5	Chunk summaries
+	6	Entity extraction from redacted chunks
+	7	Relationship extraction from redacted chunks
+	8	NetworkX graph creation
+	9	Chroma vector store
+	10	Compact graph/vector retrieval
+	11	Qwen-based reasoning
+	12	Streamlit controls for build/search/ask
+	13	Token optimization and caching
+Do NOT build:
+	•	CrewAI agents
+	•	full G-Retriever implementation
+	•	General-Reasoner training
+	•	fine-tuning
+	•	RL
+	•	cloud deployment
+	•	authentication
+	•	SaaS features
+	•	Neo4j unless added as optional placeholder only
+Project Structure
+Use this structure:
+
+venture_studio_ai/
+│
+├── app.py
+├── config.py
+├── requirements.txt
+├── README.md
+│
+├── data/
+│   ├── parent_company_raw/
+│   ├── parent_company_redacted/
+│   ├── companies/
+│   └── shared_templates/
+│
+├── modules/
+│   ├── llm_client.py
+│   ├── document_loader.py
+│   ├── redaction.py
+│   ├── chunker.py
+│   ├── context_compressor.py
+│   ├── entity_extractor.py
+│   ├── relationship_extractor.py
+│   ├── knowledge_graph.py
+│   ├── vector_store.py
+│   ├── graph_retriever.py
+│   ├── reasoner.py
+│   ├── prompt_builder.py
+│   ├── cache_manager.py
+│   └── file_utils.py
+│
+├── storage/
+│   ├── chroma_db/
+│   ├── cache/
+│   ├── knowledge_graph.graphml
+│   ├── knowledge_graph.json
+│   └── extraction_audit_log.csv
+│
+└── outputs/
+    ├── generalized_templates/
+    ├── advisor_reports/
+    └── prompt_logs/
+
+Token Optimization Requirements
+Optimize aggressively for local Qwen.
+In config.py, add:
+
+MAX_INPUT_CHARS = 12000
+MAX_RETRIEVED_CHUNKS = 5
+MAX_CHUNK_CHARS = 1200
+MAX_GRAPH_NODES = 10
+MAX_GRAPH_RELATIONSHIPS = 15
+MAX_COMPANY_PROFILE_CHARS = 1500
+MAX_OUTPUT_TOKENS = 1200
+SAVE_PROMPT_LOGS = True
+DEBUG_PROMPTS = False
+
+Rules:
+	1	Never send full documents to Qwen.
+	2	Use redacted chunks only.
+	3	Prefer graph summaries over long chunk text.
+	4	Retrieve max 3–5 chunks.
+	5	Use max 10 graph nodes.
+	6	Use max 15 graph relationships.
+	7	Deduplicate retrieved chunks.
+	8	Compress context before final call.
+	9	Cache extracted text, redacted text, summaries, entities, relationships, embeddings, and query results.
+	10	Use one final Qwen call whenever possible.
+Cache Requirements
+Create:
+
+storage/cache/
+  file_hashes.json
+  extracted_text.json
+  redacted_text.json
+  chunk_summaries.json
+  entity_extractions.json
+  relationship_extractions.json
+  query_cache.json
+
+Use file hash to avoid reprocessing unchanged documents.
+Implement:
+
+def get_file_hash(file_path: str) -> str:
+    pass
+
+def should_reprocess(file_path: str) -> bool:
+    pass
+
+Knowledge Graph Schema
+Node types:
+	•	Document
+	•	Topic
+	•	Process
+	•	Policy
+	•	Template
+	•	Risk
+	•	Requirement
+	•	Decision
+	•	Lesson
+	•	Role
+	•	Department
+	•	Artifact
+Relationship types:
+	•	CONTAINS
+	•	REFERENCES
+	•	SUPPORTS
+	•	REQUIRES
+	•	MITIGATES
+	•	DERIVED_FROM
+	•	RELATED_TO
+	•	USED_IN
+	•	IMPACTS
+	•	GENERALIZES_TO
+Each node stores:
+
+{
+  "node_type": "...",
+  "generalized_description": "...",
+  "source_document": "...",
+  "confidence": 0.0,
+  "created_at": "..."
+}
+
+Each edge stores:
+
+{
+  "relationship_type": "...",
+  "generalized_evidence_summary": "...",
+  "source_document": "...",
+  "confidence": 0.0
+}
+
+Do not store raw evidence text in graph edges.
+Module Responsibilities
+document_loader.py
+Load files from a folder.
+Support:
+	•	.pdf
+	•	.docx
+	•	.txt
+	•	.md
+	•	.csv
+	•	.xlsx
+Skip unsupported files gracefully.
+redaction.py
+Redact sensitive values using regex and simple rules.
+Return:
+
+{
+  "redacted_text": "...",
+  "redaction_count": 10,
+  "redaction_types": ["EMAIL", "PHONE"]
+}
+
+chunker.py
+Chunk redacted text.
+Use practical defaults:
+
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 150
+
+context_compressor.py
+Create compact query context.
+Functions:
+
+def deduplicate_chunks(chunks: list) -> list:
+    pass
+
+def compress_chunks(chunks: list, max_chars: int) -> list:
+    pass
+
+def build_compact_context(chunks, graph_nodes, graph_relationships) -> str:
+    pass
+
+entity_extractor.py
+Use Qwen only on redacted chunks.
+Prompt Qwen to return JSON only:
+
+{
+  "entities": [
+    {
+      "name": "Design Control Process",
+      "type": "Process",
+      "description": "Generalized process for managing design controls",
+      "confidence": 0.85
+    }
+  ]
+}
+
+Add robust JSON parsing. If invalid JSON, retry once with a stricter prompt. If still invalid, skip and log.
+relationship_extractor.py
+Use Qwen only on redacted chunks.
+Return JSON only:
+
+{
+  "relationships": [
+    {
+      "source": "Design Control Process",
+      "relationship": "REQUIRES",
+      "target": "Design Review Checklist",
+      "evidence_summary": "The process generally requires a review checklist.",
+      "confidence": 0.82
+    }
+  ]
+}
+
+knowledge_graph.py
+Use NetworkX.
+Functions:
+
+add_entities(entities, source_doc)
+add_relationships(relationships, source_doc)
+save_graph()
+load_graph()
+export_json()
+get_neighbors(node)
+search_nodes(query)
+get_graph_stats()
+
+vector_store.py
+Use Chroma.
+Store redacted chunks and summaries only.
+Metadata:
+
+{
+  "source_document": "...",
+  "document_type": "...",
+  "redaction_status": "redacted",
+  "chunk_id": "..."
+}
+
+graph_retriever.py
+Given a query:
+	1	Search graph nodes.
+	2	Expand 1-hop neighbors.
+	3	Search vector store.
+	4	Deduplicate and compress.
+	5	Return compact context.
+reasoner.py
+Use Qwen to produce a final answer.
+Reasoning style:
+	1	Understand the request.
+	2	Identify relevant generalized parent-company knowledge.
+	3	Identify what safely transfers to the new company.
+	4	Identify missing information.
+	5	Produce recommendation.
+	6	Add risk/review notes.
+Do not reveal proprietary details.
+llm_client.py
+Use local Ollama endpoint:
+
+http://localhost:11434/api/generate
+
+Model:
+
+MODEL_NAME = "qwen3.5:latest"
+
+Create:
+
+def generate_response(prompt: str, max_tokens: int = 1200) -> str:
+    pass
+
+def safe_generate(prompt: str, max_tokens: int = 1200) -> str:
+    pass
+
+safe_generate should trim context if the prompt is too long.
+Prompt Rules
+Keep prompts concise.
+Every final prompt should include:
+
+You are working with redacted proprietary parent-company knowledge.
+Never reconstruct or guess hidden names, values, clauses, amounts, or identifiers.
+Use knowledge only to extract generalized patterns and reusable business guidance.
+Do not copy original wording from source documents.
+If evidence is weak, say what is missing.
+For legal, regulatory, financial, HR, medical, tax, or investment-related topics, provide educational draft guidance only and recommend expert review.
+
+Output Format
+Every answer should use:
+
+## Summary
+
+## Relevant Generalized Knowledge
+
+## Recommended Approach for the New Company
+
+## Draft / Checklist / Advisory Output
+
+## Assumptions
+
+## Risks and Expert Review Needed
+
+## Sources Used
+
+Use sanitized source document names only.
+Streamlit UI
+Add a Knowledge Graph section.
+Sidebar:
+
+Knowledge Graph
+- Parent Company Folder Path
+- Build / Rebuild Knowledge Graph
+- View Graph Stats
+- Debug Mode toggle
+
+Main area:
+	1	Build graph button
+	2	Graph stats:
+	◦	documents processed
+	◦	nodes
+	◦	edges
+	◦	redacted chunks
+	◦	cache hits/misses
+	3	Search graph
+	4	Company profile fields
+	5	Ask advisory question
+	6	Single final output
+Debug mode may show:
+	•	retrieved chunks count
+	•	graph nodes used
+	•	relationships used
+	•	approximate input characters
+	•	whether context was compressed
+Default debug mode must be off.
+Requirements
+Use:
+
+streamlit
+langchain
+langchain-community
+chromadb
+networkx
+pandas
+openpyxl
+pypdf
+python-docx
+requests
+tqdm
+python-dotenv
+
+Add other packages only if absolutely necessary.
+README Requirements
+Include:
+	1	What the system does
+	2	Privacy warning
+	3	Local-only architecture
+	4	Setup commands
+	5	Folder setup
+	6	How to build graph
+	7	How to query graph
+	8	Token optimization design
+	9	Known limitations
+	10	Future upgrades
+Setup commands:
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+ollama serve
+streamlit run app.py
+
+Implementation Order
+Implement in this exact order:
+	1	config.py
+	2	file_utils.py
+	3	document_loader.py
+	4	redaction.py
+	5	chunker.py
+	6	cache_manager.py
+	7	llm_client.py
+	8	entity_extractor.py
+	9	relationship_extractor.py
+	10	knowledge_graph.py
+	11	vector_store.py
+	12	context_compressor.py
+	13	graph_retriever.py
+	14	prompt_builder.py
+	15	reasoner.py
+	16	app.py
+	17	README.md
+After each major module, make sure imports work before moving on.
+Success Test
+Use a test folder with:
+	•	one SOP
+	•	one contract template
+	•	one hiring policy
+	•	one Excel checklist
+Ask:
+
+Using generalized parent company experience, create a quality system startup checklist for a new software-enabled medical device company at prototype stage.
+
+Expected result:
+	•	files processed locally
+	•	sensitive content redacted
+	•	graph built
+	•	vector store built
+	•	compact context retrieved
+	•	one final Qwen response
+	•	no proprietary data exposed
+	•	sanitized sources listed
+Final Instruction
+Do not rewrite the entire existing app unless required.Preserve existing working functionality.Add the GraphRAG feature modularly.Prioritize privacy, simple code, caching, and token efficiency.

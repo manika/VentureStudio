@@ -1,0 +1,250 @@
+can you create a detailed prompt for the venture studio architecture with streamlit dashboard you suggested with Stage 1 (now) Simple dashboard Single output Use following : local llm qwen3.5 already installed modular approach
+
+Thought for a couple of seconds
+Below is a detailed prompt you can use in Claude/Cursor to build Stage 1 MVP.
+
+You are an expert AI application architect and Python developer.
+
+Build a Stage 1 MVP for a local-first AI Venture Studio Advisor using a modular architecture and Streamlit dashboard.
+
+## Project Goal
+
+Create a simple local AI dashboard that helps a venture studio advise new startups by using:
+
+1. The founder’s existing startup documents as reference knowledge
+2. Basic information about a new company
+3. A local LLM already installed through Ollama
+4. A simple Streamlit dashboard
+5. A single-output response flow for now
+
+This is Stage 1 only. Do NOT build multi-agent orchestration yet. Design the code so agents can be added later.
+
+## Existing Setup
+
+Local LLM is already installed:
+
+- Model: `qwen3.5:latest`
+- Runtime: Ollama
+- Command verified:
+
+```bash
+ollama list
+
+shows:
+
+qwen3.5:latest
+
+Use Ollama locally. Do not use OpenAI, Claude API, Gemini, or any paid cloud LLM API.
+Key Requirements
+1. Local-First Privacy
+All proprietary documents must remain local.
+The system should:
+	•	read documents from local folders
+	•	process them locally
+	•	use local vector storage
+	•	call local Qwen through Ollama
+	•	not upload documents to external APIs
+2. Modular Architecture
+Create a clean project structure like this:
+
+venture_studio_ai/
+│
+├── app.py
+├── config.py
+├── requirements.txt
+├── README.md
+│
+├── data/
+│   ├── founder_startup/
+│   ├── companies/
+│   │   ├── company_a/
+│   │   └── company_b/
+│   └── shared_templates/
+│
+├── modules/
+│   ├── llm_client.py
+│   ├── document_loader.py
+│   ├── vector_store.py
+│   ├── retrieval.py
+│   ├── prompt_builder.py
+│   ├── advisor_engine.py
+│   └── file_utils.py
+│
+├── storage/
+│   └── chroma_db/
+│
+└── outputs/
+    └── generated_templates/
+
+Each module should have a clear responsibility.
+3. Streamlit Dashboard
+Create a simple Streamlit dashboard with:
+Sidebar
+	•	App title: “Venture Studio AI Advisor”
+	•	Company selector
+	•	Knowledge source toggles:
+	◦	Founder Startup Knowledge
+	◦	Selected Company Data
+	◦	Shared Templates
+	•	Mode selector:
+	◦	Ask a Question
+	◦	Generate Template
+	◦	Analyze Document
+	◦	Strategic Advice
+	•	File uploader for adding new documents
+	•	Rebuild Index button
+Main Workspace
+	•	Company basic information input:
+	◦	Company name
+	◦	Stage
+	◦	Product type
+	◦	Regulatory area
+	◦	Notes/context
+	•	User question/task input
+	•	Run button
+	•	Single final output section
+For Stage 1, output should be one combined answer only.
+Do not create an agent activity panel yet.
+4. RAG / Document Retrieval
+Use LlamaIndex and Chroma or a simple local vector store.
+The system should:
+	•	load PDFs, TXT, DOCX if possible
+	•	chunk documents
+	•	create embeddings locally if possible
+	•	store index locally
+	•	retrieve relevant chunks based on user query
+	•	pass retrieved context to Qwen
+If local embedding setup is difficult, create a clean placeholder abstraction so embeddings can be swapped later.
+5. Ollama / Qwen Integration
+Create a module llm_client.py that sends prompts to local Ollama.
+Use model:
+
+MODEL_NAME = "qwen3.5:latest"
+
+Use local endpoint:
+
+http://localhost:11434/api/generate
+
+The function should look like:
+
+generate_response(prompt: str) -> str
+
+It should include error handling if Ollama is not running.
+6. Guardrail Prompting
+Create strong guardrails in prompt_builder.py.
+The AI should follow these rules:
+	•	Use founder startup documents as reference experience only
+	•	Do not copy proprietary details directly
+	•	Do not expose sensitive information from prior startup documents
+	•	Generalize patterns into reusable guidance
+	•	Use selected company information to tailor the answer
+	•	Clearly separate facts from recommendations
+	•	If evidence is weak, say so
+	•	Do not provide legal, medical, tax, or regulatory advice as final professional advice
+	•	Recommend professional review for high-risk outputs
+	•	For medical device regulatory content, include a review disclaimer
+The system prompt should include:
+
+You are a local AI advisor for a venture studio. 
+You help create templates, summaries, checklists, and advisory drafts for startups.
+
+You may use founder startup documents as reference experience, but you must not copy confidential or proprietary details directly. 
+Extract general patterns, frameworks, and best practices.
+
+When advising a new company, tailor your answer to the company profile provided by the user.
+
+Always provide structured, practical output.
+
+If the retrieved context does not support an answer, say what is missing.
+
+For legal, regulatory, financial, HR, medical, tax, or investment-related topics, provide educational and draft guidance only and recommend expert review.
+
+7. Output Format
+Every answer should follow this structure:
+
+## Summary
+
+## Recommended Approach
+
+## Draft / Template / Analysis
+
+## Key Assumptions
+
+## Risks or Review Needed
+
+## Sources Used
+
+If sources are retrieved from documents, list file names where possible.
+8. Stage 1 Scope
+Build only:
+	•	simple dashboard
+	•	local Qwen response
+	•	document loading
+	•	retrieval
+	•	single output
+	•	basic company context
+	•	modular code
+Do NOT build yet:
+	•	CrewAI
+	•	multiple agents
+	•	agent activity panel
+	•	complex role routing
+	•	cloud deployment
+	•	authentication
+	•	SaaS features
+	•	payment features
+	•	production security
+But leave the architecture modular so these can be added later.
+9. External Drive Support
+The data folder should be configurable.
+In config.py, allow:
+
+DATA_DIR = "/path/to/external_drive/venture_studio_data"
+
+If the path does not exist, fall back to local ./data.
+10. Deliverables
+Please create:
+	1	Full project folder structure
+	2	requirements.txt
+	3	app.py
+	4	All module files
+	5	Clear setup instructions in README.md
+	6	Comments in code explaining each step
+	7	A simple test flow
+11. Setup Commands
+Include commands like:
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+ollama serve
+streamlit run app.py
+
+12. Success Test
+The final app should support this test:
+Company profile:
+
+Company Name: Example Med Device Co
+Stage: Prototype
+Product Type: Software-enabled medical device
+Regulatory Area: FDA / Quality System
+Notes: Small team preparing early quality documentation
+
+User asks:
+
+Create a first draft checklist for setting up a basic quality management process using my prior startup experience as reference.
+
+Expected behavior:
+	•	App retrieves relevant founder startup docs
+	•	Qwen generates one structured response
+	•	Output does not copy confidential details
+	•	Output includes assumptions, risks, and expert review reminder
+Important Coding Rules
+	•	Keep code simple and readable
+	•	Use modular functions
+	•	Add error handling
+	•	Avoid hardcoding private paths
+	•	Do not add unnecessary complexity
+	•	Do not use paid APIs
+	•	Do not send data outside local machine
+	•	Keep Stage 1 focused
