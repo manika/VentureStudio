@@ -98,6 +98,10 @@ EXTRACTORS = {
 }
 
 
+CHUNK_SIZE = 1200
+CHUNK_OVERLAP = 150
+
+
 def extract_text(file_path: Path) -> str:
     """Extract text from a file, dispatching by extension."""
     file_path = Path(file_path)
@@ -108,18 +112,59 @@ def extract_text(file_path: Path) -> str:
     return extractor(file_path)
 
 
+def _load_pdf_pages(file_path: Path) -> list:
+    """Return one doc entry per PDF page so TF-IDF can score pages independently."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(str(file_path))
+        pages = []
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            if text.strip():
+                pages.append({
+                    "path": str(file_path),
+                    "text": text,
+                    "source": file_path.name,
+                    "chunk": i,
+                })
+        return pages
+    except Exception:
+        return []
+
+
+def _split_chunks(text: str, file_path: Path) -> list:
+    """Split long non-PDF text into overlapping chunks."""
+    chunks = []
+    start = 0
+    idx = 0
+    while start < len(text):
+        chunk_text = text[start: start + CHUNK_SIZE]
+        if chunk_text.strip():
+            chunks.append({
+                "path": str(file_path),
+                "text": chunk_text,
+                "source": file_path.name,
+                "chunk": idx,
+            })
+        start += CHUNK_SIZE - CHUNK_OVERLAP
+        idx += 1
+    return chunks
+
+
 def load_documents(data_dir: Path):
     data_dir = Path(data_dir)
     files = list_files(data_dir)
     docs = []
     for f in files:
         try:
-            text = extract_text(f)
-            docs.append({
-                "path": str(f),
-                "text": text,
-                "source": f.name,
-            })
+            if f.suffix.lower() == ".pdf":
+                docs.extend(_load_pdf_pages(f))
+            else:
+                text = extract_text(f)
+                if len(text) > CHUNK_SIZE:
+                    docs.extend(_split_chunks(text, f))
+                else:
+                    docs.append({"path": str(f), "text": text, "source": f.name})
         except Exception:
             continue
     return docs

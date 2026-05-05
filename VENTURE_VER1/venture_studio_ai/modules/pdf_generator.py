@@ -268,7 +268,8 @@ def _header_footer(canvas, doc, company_name, doc_number, doc_title):
 
 
 def _generate_content(doc_type: str, company_profile: dict, context_chunks: list[str]) -> str:
-    """Single LLM call to generate document content."""
+    """Single LLM call to generate document content. Uses fast model for speed."""
+    from modules.llm_client import generate_fast
     company_name = company_profile.get("name", "Company")
     stage = company_profile.get("stage", "Prototype")
     product = company_profile.get("product_type", "Medical device")
@@ -303,7 +304,7 @@ SUBSECTION: [Subsection Title]
 
 Keep each section concise but complete. Cover all required regulatory elements."""
 
-    return safe_generate(prompt, max_tokens=MAX_OUTPUT_TOKENS)
+    return generate_fast(prompt, max_tokens=MAX_OUTPUT_TOKENS)
 
 
 def _parse_content(raw: str) -> list[tuple[str, str]]:
@@ -395,7 +396,7 @@ Do NOT use placeholders like [INSERT] — write real policy content.
 Use SUBSECTION: headers for sub-topics within the section.
 """
     try:
-        return safe_generate(prompt, max_tokens=700)
+        return safe_generate(prompt, max_tokens=1000)
     except Exception as e:
         return f"This section covers {section_name} requirements for {company_name}. Content generation encountered an error: {e}"
 
@@ -592,7 +593,15 @@ def generate_pdf(
     """
     Generate a PDF document. Returns (pdf_bytes, filename).
     """
-    context_chunks = context_chunks or []
+    context_chunks = list(context_chunks or [])
+
+    # Always prepend the specific reference doc for this doc type so the LLM
+    # uses the correct SOP/manual rather than whatever ChromaDB happens to return.
+    ref_path = DOC_REFERENCE_PATHS.get(doc_type, IMBED_QM_PATH)
+    ref_text = _read_reference_doc(ref_path, max_chars=2000)
+    if ref_text:
+        context_chunks.insert(0, ref_text)
+
     company_name = company_profile.get("name", "Company")
     doc_prefix = DOC_TYPES.get(doc_type, "DOC")
     doc_number = f"{doc_prefix}-001"
@@ -762,12 +771,19 @@ def generate_word_doc(
         "4. Procedure", "5. Records", "6. References",
     ]
     total = len(sections)
-    for i, section_name in enumerate(sections):
+
+    # For Quick Template, generate all content in one LLM call (same as PDF path)
+    if not comprehensive:
         if progress_callback:
+            progress_callback("Generating document content...")
+        quick_content = _generate_content(doc_type, company_profile, [])
+
+    for i, section_name in enumerate(sections):
+        if progress_callback and comprehensive:
             progress_callback(f"Generating section {i+1}/{total}: {section_name}...")
         _h1(section_name)
         raw = _generate_section(section_name, company_profile, reference_text) if comprehensive \
-            else _generate_content(doc_type, company_profile, [])
+            else quick_content
         for kind, text in _parse_content(raw):
             if not text.strip():
                 continue

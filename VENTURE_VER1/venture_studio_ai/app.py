@@ -299,27 +299,13 @@ with tab_docs:
                 _doc_sources = [DOC_REFERENCE_PATHS.get(doc_type, IMBED_QM_PATH)]
             else:
                 with st.spinner(f"Generating {doc_type}..."):
-                    _chroma_results = []
-                    try:
-                        store = ChromaStore()
-                        _chroma_results = store.query(
-                            f"{doc_type} {product_type} {regulatory}", top_k=5
-                        )
-                    except Exception:
-                        pass
-                    context_chunks = [r.get("text", "") for r in _chroma_results if r.get("text")]
                     doc_bytes, filename = generate_pdf(
                         doc_type=doc_type,
                         company_profile=_profile,
-                        context_chunks=context_chunks,
+                        context_chunks=[],
                         progress_callback=_doc_progress,
                     )
-                seen = set()
-                for r in _chroma_results:
-                    src = r.get("source") or r.get("path", "")
-                    if src and src not in seen:
-                        seen.add(src)
-                        _doc_sources.append(src)
+                _doc_sources = [DOC_REFERENCE_PATHS.get(doc_type, IMBED_QM_PATH)]
             mime_type = "application/pdf"
 
         progress_placeholder.empty()

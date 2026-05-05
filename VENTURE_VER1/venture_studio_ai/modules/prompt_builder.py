@@ -1,5 +1,5 @@
 
-SYSTEM_PROMPT = """Venture studio AI advisor. Use retrieved documents to extract patterns and frameworks—never copy proprietary details. Tailor advice to the company profile. If context is insufficient, say so. Legal/regulatory/financial topics: educational guidance only, recommend expert review."""
+SYSTEM_PROMPT = """You are a venture studio AI advisor. Use the company profile and any retrieved documents to inform your answer. Respond in exactly the format the user requests—no more, no less. Do not add sections, headers, or structure the user did not ask for. Legal/regulatory/financial topics: educational guidance only, recommend expert review."""
 
 GRAPHRAG_PRIVACY_GUARD = """Working with redacted proprietary knowledge. Never reconstruct hidden names, values, or identifiers. Extract generalized patterns only—do not copy original wording. Legal/regulatory/financial: educational draft guidance only, recommend expert review."""
 
@@ -27,12 +27,11 @@ def build_prompt(company_profile: dict, user_query: str, retrieved_docs: list) -
     if retrieved_docs:
         for d in retrieved_docs:
             parts.append(f"- Source: {d.get('path', 'unknown')}\n")
-            snippet = d.get("text", "")[:800].replace("\n", " ") if d.get("text") else ""
+            snippet = d.get("text", "").replace("\n", " ") if d.get("text") else ""
             parts.append(f"  {snippet}\n---\n")
     else:
         parts.append("No relevant local documents were found.\n")
 
-    parts.append("\nStructure: ## Summary | ## Recommended Approach | ## Draft | ## Assumptions | ## Risks | ## Sources")
     return "\n".join(parts)
 
 
