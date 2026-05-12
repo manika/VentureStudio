@@ -58,6 +58,10 @@ def retrieve_context(
     for d in dirs_to_load:
         docs.extend(load_documents(d))
 
+    if not docs:
+        cache_manager.set_cache("query_cache", cache_key, [])
+        return []
+
     store = _get_store(docs)
     hits = store.query(query, top_k=3)
     cache_manager.set_cache("query_cache", cache_key, hits)

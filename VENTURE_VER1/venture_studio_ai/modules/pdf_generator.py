@@ -406,6 +406,7 @@ def generate_comprehensive_pdf(
     company_profile: dict,
     source_pdf_path: str | None = None,
     progress_callback=None,
+    extra_context: list[str] | None = None,
 ) -> tuple[bytes, str]:
     """Generate a comprehensive PDF formatted to match Imbed document control standards."""
     company_name = company_profile.get("name", "Company")
@@ -423,6 +424,8 @@ def generate_comprehensive_pdf(
     if progress_callback:
         progress_callback(f"Reading reference: {Path(ref_path).name}...")
     reference_text = _read_reference_doc(ref_path)
+    if extra_context:
+        reference_text += "\n\n--- Company & Founder Context ---\n" + "\n---\n".join(c[:600] for c in extra_context)
 
     styles = _build_styles()
     buf = io.BytesIO()
@@ -589,6 +592,7 @@ def generate_pdf(
     company_profile: dict,
     context_chunks: list[str] | None = None,
     progress_callback=None,
+    extra_context: list[str] | None = None,
 ) -> tuple[bytes, str]:
     """
     Generate a PDF document. Returns (pdf_bytes, filename).
@@ -601,6 +605,8 @@ def generate_pdf(
     ref_text = _read_reference_doc(ref_path, max_chars=2000)
     if ref_text:
         context_chunks.insert(0, ref_text)
+    if extra_context:
+        context_chunks.extend(extra_context)
 
     company_name = company_profile.get("name", "Company")
     doc_prefix = DOC_TYPES.get(doc_type, "DOC")
@@ -696,6 +702,7 @@ def generate_word_doc(
     company_profile: dict,
     comprehensive: bool = False,
     progress_callback=None,
+    extra_context: list[str] | None = None,
 ) -> tuple[bytes, str]:
     """Generate a Word (.docx) document. Returns (docx_bytes, filename)."""
     from docx import Document as DocxDocument
@@ -766,6 +773,8 @@ def generate_word_doc(
     # Sections
     ref_path = DOC_REFERENCE_PATHS.get(doc_type, IMBED_QM_PATH)
     reference_text = _read_reference_doc(ref_path) if comprehensive else ""
+    if extra_context:
+        reference_text += "\n\n--- Company & Founder Context ---\n" + "\n---\n".join(c[:600] for c in extra_context)
     sections = QM_SECTIONS if doc_type == "Quality Manual" else [
         "1. Purpose and Scope", "2. Responsibilities", "3. Definitions",
         "4. Procedure", "5. Records", "6. References",

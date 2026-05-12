@@ -73,33 +73,54 @@ def _diverse_chunks(chunks: list[dict], max_per_source: int = 2, final_k: int = 
     return selected
 
 
-def ask(query: str, company_profile: dict, top_k: int = 8) -> tuple[str, dict]:
+def ask(
+    query: str,
+    company_profile: dict,
+    top_k: int = 8,
+    progress_callback=None,
+    extra_chunks: list | None = None,
+) -> tuple[str, dict]:
     """
     Run the Smart Advisor pipeline for a single query.
 
     Steps:
-      1. Semantic search ChromaDB (wide candidate pool).
-      2. Source-diversity re-rank (max 2 chunks per source).
-      3. Deduplicate and truncate.
-      4. Build compact prompt.
-      5. Single safe_generate call.
+      1. Semantic search ChromaDB (knowledgebase).
+      2. Merge extra_chunks (company/founder TF-IDF hits) if provided.
+      3. Source-diversity re-rank.
+      4. Deduplicate and truncate.
+      5. Build compact prompt.
+      6. Single LLM call.
 
     Returns:
         (response_text, debug_meta)
     """
+    def _progress(msg: str):
+        if progress_callback:
+            progress_callback(msg)
+
     store = _get_store()
 
-    # 1. Wide semantic search — fetch 3× top_k so diversity re-rank has candidates
+    # 1. Wide semantic search over knowledgebase
+    _progress("Searching knowledge base...")
     candidate_k = top_k * 3
-    raw_chunks = store.query(query_text=query, top_k=candidate_k)
-    chunks_retrieved = len(raw_chunks)
+    kb_chunks = store.query(query_text=query, top_k=candidate_k)
+    chunks_retrieved = len(kb_chunks)
+    _progress(f"Found {chunks_retrieved} candidate chunks — ranking by relevance...")
 
-    # 2. Source-diversity re-rank
-    diverse = _diverse_chunks(raw_chunks, max_per_source=2, final_k=top_k)
+    # 2. Source-diversity re-rank on knowledgebase chunks only
+    diverse = _diverse_chunks(kb_chunks, max_per_source=2, final_k=top_k)
 
-    # 3. Deduplicate
+    # 3. Deduplicate knowledgebase results
     unique_chunks = _deduplicate_chunks(diverse)
     compression_applied = len(unique_chunks) < chunks_retrieved
+
+    # 4. Merge company/founder extra chunks — always included, not subject to ranking cutoff
+    if extra_chunks:
+        existing_texts = {c.get("text", "") for c in unique_chunks}
+        new_extra = [c for c in extra_chunks if c.get("text", "").strip() and c.get("text", "") not in existing_texts]
+        if new_extra:
+            _progress(f"Adding {len(new_extra)} chunk(s) from company/founder docs...")
+        unique_chunks = new_extra + unique_chunks
 
     # 3a. Inject opening chunks (chunk_ids 0 and 1) for every source in semantic results.
     #     Cover pages carry dates / version headers that don't rank well semantically
@@ -111,15 +132,15 @@ def ask(query: str, company_profile: dict, top_k: int = 8) -> tuple[str, dict]:
         for c in unique_chunks
         if c.get("source") or c.get("path")
     })
+    _progress(f"Selected {len(unique_sources)} source file(s) — loading document headers...")
     cover_chunk_texts: set[str] = set()
     if unique_sources:
         cover_chunks = store.get_chunks_by_source(unique_sources, chunk_ids=[0, 1])
         existing_texts = {c.get("text", "") for c in unique_chunks}
         new_covers = [c for c in cover_chunks if c.get("text", "") not in existing_texts]
         for c in new_covers:
-            c["_no_truncate"] = True  # preserve full text for factual header info
+            c["_no_truncate"] = True
             cover_chunk_texts.add(c.get("text", ""))
-        # Prepend so they appear at the top of the knowledge block
         unique_chunks = new_covers + unique_chunks
 
     # 4. Truncate each chunk and collect source names
@@ -129,7 +150,6 @@ def ask(query: str, company_profile: dict, top_k: int = 8) -> tuple[str, dict]:
         text = chunk.get("text", "").strip()
         if not text:
             continue
-        # Don't truncate injected cover chunks — they may contain dates/versions
         if not chunk.get("_no_truncate") and len(text) > MAX_CHUNK_CHARS:
             text = text[:MAX_CHUNK_CHARS] + "…"
             compression_applied = True
@@ -141,10 +161,11 @@ def ask(query: str, company_profile: dict, top_k: int = 8) -> tuple[str, dict]:
     knowledge_block = "\n\n".join(context_parts) if context_parts else "(no relevant knowledge found)"
 
     # 5. Build prompt
+    _progress("Building prompt and calling advisor model...")
     profile_text = _build_profile_text(company_profile)
     context = (
         f"## Company Profile\n{profile_text}"
-        f"\n\n## Knowledge Chunks (from parent company documents)\n{knowledge_block}"
+        f"\n\n## Knowledge Chunks (from knowledgebase, company docs, and founder experience)\n{knowledge_block}"
     )
     prompt = build_prompt(prompt_type="architect", task=query, context=context)
 

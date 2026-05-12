@@ -13,6 +13,12 @@ MODEL_REASONING = "qwen3.5:latest"
 MODEL_NAME = MODEL_REASONING
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 
+# Claude settings (used when LLM backend is switched to Claude)
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
+# OpenAI settings (used when LLM backend is switched to OpenAI)
+OPENAI_MODEL = "gpt-4o"
+
 # Storage
 STORAGE_DIR = Path(__file__).parent / "storage"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)

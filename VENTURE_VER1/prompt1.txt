@@ -224,11 +224,11 @@ streamlit run app.py
 The final app should support this test:
 Company profile:
 
-Company Name: Example Med Device Co
-Stage: Prototype
-Product Type: Software-enabled medical device
-Regulatory Area: FDA / Quality System
-Notes: Small team preparing early quality documentation
+Company Name: [Company Name]
+Stage: [Stage]
+Product Type: [Product Type]
+Regulatory Area: [Regulatory Area]
+Notes: [Notes]
 
 User asks:
 

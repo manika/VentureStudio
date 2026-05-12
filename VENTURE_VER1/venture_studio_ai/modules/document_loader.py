@@ -8,17 +8,16 @@ def _extract_txt(file_path: Path) -> str:
 
 def _extract_pdf(file_path: Path) -> str:
     try:
+        from pdfminer.high_level import extract_text
+        return extract_text(str(file_path)) or ""
+    except ImportError:
+        pass
+    except Exception as e:
+        return f"[PDF read error: {e}]"
+    try:
         from pypdf import PdfReader
         reader = PdfReader(str(file_path))
-        pages = []
-        for page in reader.pages:
-            try:
-                pages.append(page.extract_text() or "")
-            except Exception:
-                pass
-        return "\n".join(pages)
-    except ImportError:
-        return f"[PDF extraction unavailable — install pypdf] {file_path.name}"
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
     except Exception as e:
         return f"[PDF read error: {e}]"
 
@@ -113,23 +112,11 @@ def extract_text(file_path: Path) -> str:
 
 
 def _load_pdf_pages(file_path: Path) -> list:
-    """Return one doc entry per PDF page so TF-IDF can score pages independently."""
-    try:
-        from pypdf import PdfReader
-        reader = PdfReader(str(file_path))
-        pages = []
-        for i, page in enumerate(reader.pages):
-            text = page.extract_text() or ""
-            if text.strip():
-                pages.append({
-                    "path": str(file_path),
-                    "text": text,
-                    "source": file_path.name,
-                    "chunk": i,
-                })
-        return pages
-    except Exception:
+    """Return chunked doc entries from a PDF so TF-IDF can score sections independently."""
+    text = _extract_pdf(file_path)
+    if not text or text.startswith("[PDF"):
         return []
+    return _split_chunks(text, file_path)
 
 
 def _split_chunks(text: str, file_path: Path) -> list:
