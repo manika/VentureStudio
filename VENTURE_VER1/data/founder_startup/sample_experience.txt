@@ -1,1 +1,0 @@
-Founder startup notes: built a previous medical device MVP, focus on early quality docs, risk-based approach, minimal viable QMS tasks include document control, team roles, design history file, and supplier qualification.

@@ -24,19 +24,15 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from config import OUTPUTS_DIR, MAX_OUTPUT_TOKENS
+from config import OUTPUTS_DIR, MAX_OUTPUT_TOKENS, PARENT_COMPANY_RAW_DIR
 from modules.llm_client import safe_generate
 
-_IMBED_BASE = (
-    "/Users/manika/My Drive/VentureStudio/data"
-    "/parent_company_raw/Knowledgebase/QualitySystem/All Files to Inspector 2"
-)
-_D1 = f"{_IMBED_BASE}/Day 1 - 10FEB2025"
-_D2 = f"{_IMBED_BASE}/Day 2 - 11FEB2025"
-_D3 = f"{_IMBED_BASE}/Day 3 - 12FEB2025"
-_D4 = f"{_IMBED_BASE}/Day 4 - 13FEB2025"
+_IMBED_BASE = PARENT_COMPANY_RAW_DIR / "Knowledgebase" / "QualitySystem" / "All Files to Inspector 2"
+_D1 = str(_IMBED_BASE / "Day 1 - 10FEB2025")
+_D2 = str(_IMBED_BASE / "Day 2 - 11FEB2025")
+_D3 = str(_IMBED_BASE / "Day 3 - 12FEB2025")
+_D4 = str(_IMBED_BASE / "Day 4 - 13FEB2025")
 
-# Legacy alias kept so app.py import doesn't break
 IMBED_QM_PATH = f"{_D1}/7 42002_Imbed Quality Manual.pdf"
 
 # Maps each document type to the actual Imbed reference SOP/document

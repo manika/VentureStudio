@@ -25,6 +25,7 @@ from modules import (
     advisor_engine,
     fast_indexer,
     smart_advisor,
+    web_search,
 )
 from modules.vector_store import ChromaStore
 from modules.pdf_generator import (
@@ -522,10 +523,28 @@ with st.sidebar.expander("Knowledge Sources", expanded=True):
     use_founder = st.checkbox("Founder Startup Knowledge", value=True)
     use_company = st.checkbox("Selected Company Data", value=True)
     use_templates = st.checkbox("Shared Templates", value=True)
-    uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt", "docx"])
+    use_internet = st.checkbox("Search Internet", value=False, help="Live DuckDuckGo search — adds top web results as context")
+    _upload_dest = st.selectbox(
+        "Upload destination",
+        ["Knowledgebase", "Founder Startup", "Templates", "Company"],
+        key="upload_dest",
+    )
+    if _upload_dest == "Company":
+        _existing_companies = sorted([d.name for d in _companies_dir.iterdir() if d.is_dir()]) if _companies_dir.exists() else []
+        _upload_company = st.selectbox("Select company", _existing_companies, key="upload_company") if _existing_companies else None
+    uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt", "docx", "pptx", "rtf", "xlsx"])
     if uploaded_file is not None:
-        saved = file_utils.save_uploaded_file(uploaded_file, DATA_DIR)
-        st.success(f"Saved {saved}")
+        if _upload_dest == "Knowledgebase":
+            _upload_dir = DATA_DIR / "parent_company_raw" / "Knowledgebase"
+        elif _upload_dest == "Founder Startup":
+            _upload_dir = DATA_DIR / "founder_startup"
+        elif _upload_dest == "Templates":
+            _upload_dir = DATA_DIR / "shared_templates"
+        else:
+            _upload_dir = _companies_dir / _upload_company if (_upload_dest == "Company" and _upload_company) else DATA_DIR
+        _upload_dir.mkdir(parents=True, exist_ok=True)
+        saved = file_utils.save_uploaded_file(uploaded_file, _upload_dir)
+        st.success(f"Saved to {_upload_dest}: {uploaded_file.name}")
     _index_store = ChromaStore()
     _index_stats = _index_store.get_stats()
     _index_chunk_count = _index_stats.get("chunks", _index_stats.get("documents", 0))
@@ -623,6 +642,8 @@ with tab_standard:
                 use_templates=use_templates,
                 selected_company=company,
             )
+            if use_internet:
+                docs = docs + web_search.search_web(user_query)
             _t_retrieval = time.perf_counter() - _t0
 
             _t1 = time.perf_counter()
@@ -641,8 +662,10 @@ with tab_standard:
 
         st.markdown(output)
 
-        def _source_category(path_str: str) -> str:
-            p = path_str.lower()
+        def _source_category(doc: dict) -> str:
+            p = doc.get("path", "").lower()
+            if doc.get("_web"):
+                return "Web"
             if "founder_startup" in p:
                 return "Founder Docs"
             if "shared_templates" in p:
@@ -653,7 +676,7 @@ with tab_standard:
 
         grouped: dict[str, list[str]] = {}
         for d in docs:
-            cat = _source_category(d.get("path", ""))
+            cat = _source_category(d)
             name = d.get("source", d.get("path", "unknown"))
             grouped.setdefault(cat, [])
             if name not in grouped[cat]:
@@ -679,7 +702,7 @@ with tab_standard:
             if docs:
                 with st.expander("Raw retrieved chunks", expanded=False):
                     for i, d in enumerate(docs):
-                        st.markdown(f"**Chunk {i + 1}** — `{d.get('source', 'unknown')}` ({_source_category(d.get('path', ''))})")
+                        st.markdown(f"**Chunk {i + 1}** — `{d.get('source', 'unknown')}` ({_source_category(d)})")
                         st.text(d.get("text", "")[:500] + ("…" if len(d.get("text", "")) > 500 else ""))
 
 # ===== TAB 2: Smart Advisor =====
@@ -709,23 +732,36 @@ with tab_smart:
             def _sa_progress(msg: str):
                 _sa_log.markdown(f"⏳ {msg}")
 
-            # Always include all company docs directly (don't let TF-IDF rank them out)
-            _sa_log.markdown("⏳ Loading company and founder documents...")
+            _sa_log.markdown("⏳ Loading documents...")
             _extra_chunks: list = []
             if use_company and company:
                 _company_dir = DATA_DIR / "companies" / company
                 if _company_dir.exists():
-                    _extra_chunks.extend(document_loader.load_documents(_company_dir))
-            # Founder and template docs are relevance-filtered via TF-IDF
-            if use_founder or use_templates:
-                _extra_chunks.extend(retrieval.retrieve_context(
+                    for _c in document_loader.load_documents(_company_dir):
+                        _c["_category"] = "company"
+                        _extra_chunks.append(_c)
+            if use_founder:
+                _founder_dir = DATA_DIR / "founder_startup"
+                if _founder_dir.exists():
+                    for _c in document_loader.load_documents(_founder_dir):
+                        _c["_category"] = "founder"
+                        _extra_chunks.append(_c)
+            if use_templates:
+                for _c in retrieval.retrieve_context(
                     query=gr_query,
                     DATA_DIR=DATA_DIR,
-                    use_founder=use_founder,
+                    use_founder=False,
                     use_company=False,
-                    use_templates=use_templates,
+                    use_templates=True,
                     selected_company="",
-                ))
+                ):
+                    _c["_category"] = "template"
+                    _extra_chunks.append(_c)
+            if use_internet:
+                _sa_log.markdown("⏳ Searching the web...")
+                for _c in web_search.search_web(gr_query):
+                    _c["_category"] = "web"
+                    _extra_chunks.append(_c)
 
             _sa_response, _sa_meta = smart_advisor.ask(
                 gr_query,
@@ -815,6 +851,13 @@ with tab_docs:
                 use_templates=use_templates,
                 selected_company="",
             ):
+                if _dc.get("text", "").strip():
+                    _doc_extra.append(_dc["text"])
+                    _src = _dc.get("source", "")
+                    if _src and _src not in _doc_extra_sources:
+                        _doc_extra_sources.append(_src)
+        if use_internet:
+            for _dc in web_search.search_web(f"{doc_type} {company} medical device regulatory"):
                 if _dc.get("text", "").strip():
                     _doc_extra.append(_dc["text"])
                     _src = _dc.get("source", "")

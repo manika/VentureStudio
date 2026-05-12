@@ -9,7 +9,7 @@ from config import MAX_CHUNK_CHARS
 
 from .vector_store import ChromaStore
 from .llm_client import generate_reasoning
-from services.prompt_service import build_prompt
+from services.prompt_service import build_advisor_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -107,67 +107,74 @@ def ask(
     chunks_retrieved = len(kb_chunks)
     _progress(f"Found {chunks_retrieved} candidate chunks — ranking by relevance...")
 
-    # 2. Source-diversity re-rank on knowledgebase chunks only
-    diverse = _diverse_chunks(kb_chunks, max_per_source=2, final_k=top_k)
+    # 2. Source-diversity re-rank and deduplicate knowledgebase results
+    diverse_kb = _diverse_chunks(kb_chunks, max_per_source=2, final_k=top_k)
+    unique_kb = _deduplicate_chunks(diverse_kb)
+    compression_applied = len(unique_kb) < chunks_retrieved
 
-    # 3. Deduplicate knowledgebase results
-    unique_chunks = _deduplicate_chunks(diverse)
-    compression_applied = len(unique_chunks) < chunks_retrieved
-
-    # 4. Merge company/founder extra chunks — always included, not subject to ranking cutoff
+    # 3. Bucket extra_chunks by category
+    cat_founder: list[dict] = []
+    cat_company: list[dict] = []
+    cat_web: list[dict] = []
+    cat_template: list[dict] = []
     if extra_chunks:
-        existing_texts = {c.get("text", "") for c in unique_chunks}
-        new_extra = [c for c in extra_chunks if c.get("text", "").strip() and c.get("text", "") not in existing_texts]
-        if new_extra:
-            _progress(f"Adding {len(new_extra)} chunk(s) from company/founder docs...")
-        unique_chunks = new_extra + unique_chunks
+        for c in extra_chunks:
+            if c.get("_web") or c.get("_category") == "web":
+                cat_web.append(c)
+            elif c.get("_category") == "company":
+                cat_company.append(c)
+            elif c.get("_category") == "template":
+                cat_template.append(c)
+            else:
+                cat_founder.append(c)
+        total_extra = len(extra_chunks)
+        _progress(f"Loaded {total_extra} chunk(s) from founder/company/web sources...")
 
-    # 3a. Inject opening chunks (chunk_ids 0 and 1) for every source in semantic results.
-    #     Cover pages carry dates / version headers that don't rank well semantically
-    #     because their bodies are boilerplate-heavy. Fetching the first two chunks
-    #     (CHUNK_SIZE ~1000 chars each) maximises the chance of capturing the date line.
-    #     These chunks bypass MAX_CHUNK_CHARS truncation so no date is cut off.
-    unique_sources = list({
-        c.get("source", c.get("path", ""))
-        for c in unique_chunks
-        if c.get("source") or c.get("path")
-    })
-    _progress(f"Selected {len(unique_sources)} source file(s) — loading document headers...")
-    cover_chunk_texts: set[str] = set()
-    if unique_sources:
-        cover_chunks = store.get_chunks_by_source(unique_sources, chunk_ids=[0, 1])
-        existing_texts = {c.get("text", "") for c in unique_chunks}
-        new_covers = [c for c in cover_chunks if c.get("text", "") not in existing_texts]
-        for c in new_covers:
-            c["_no_truncate"] = True
-            cover_chunk_texts.add(c.get("text", ""))
-        unique_chunks = new_covers + unique_chunks
+    # 4. Build labeled context sections
+    sources_used: list[str] = []
 
-    # 4. Truncate each chunk and collect source names
-    sources_used = []
-    context_parts = []
-    for i, chunk in enumerate(unique_chunks, start=1):
-        text = chunk.get("text", "").strip()
-        if not text:
-            continue
-        if not chunk.get("_no_truncate") and len(text) > MAX_CHUNK_CHARS:
-            text = text[:MAX_CHUNK_CHARS] + "…"
-            compression_applied = True
-        source = chunk.get("source", chunk.get("path", "unknown"))
-        context_parts.append(f"[Chunk {i} | Source: {source}]\n{text}")
-        if source and source not in sources_used:
-            sources_used.append(source)
+    def _render_section(chunks: list[dict]) -> str:
+        parts = []
+        for i, chunk in enumerate(chunks, 1):
+            text = chunk.get("text", "").strip()
+            if not text:
+                continue
+            if len(text) > MAX_CHUNK_CHARS:
+                text = text[:MAX_CHUNK_CHARS] + "…"
+                nonlocal compression_applied
+                compression_applied = True
+            source = chunk.get("source", chunk.get("path", "unknown"))
+            if source and source not in sources_used:
+                sources_used.append(source)
+            parts.append(f"[{i} | {source}]\n{text}")
+        return "\n\n".join(parts)
 
-    knowledge_block = "\n\n".join(context_parts) if context_parts else "(no relevant knowledge found)"
+    context_sections: list[str] = []
+    profile_text = _build_profile_text(company_profile)
+    context_sections.append(f"## Company Profile\n{profile_text}")
+
+    for chunks, title in [
+        (cat_founder, "Founder Background"),
+        (cat_company, "Company Documents"),
+        (cat_web, "Web Sources"),
+        (cat_template, "Templates"),
+    ]:
+        if chunks:
+            rendered = _render_section(chunks)
+            if rendered:
+                context_sections.append(f"## {title}\n{rendered}")
+
+    if unique_kb:
+        rendered = _render_section(unique_kb)
+        if rendered:
+            context_sections.append(f"## Industry Knowledge Base\n{rendered}")
+
+    knowledge_block = "\n\n".join(context_sections) if context_sections else "(no relevant knowledge found)"
 
     # 5. Build prompt
     _progress("Building prompt and calling advisor model...")
-    profile_text = _build_profile_text(company_profile)
-    context = (
-        f"## Company Profile\n{profile_text}"
-        f"\n\n## Knowledge Chunks (from knowledgebase, company docs, and founder experience)\n{knowledge_block}"
-    )
-    prompt = build_prompt(prompt_type="architect", task=query, context=context)
+    context = knowledge_block
+    prompt = build_advisor_prompt(prompt_type="architect", task=query, context=context)
 
     input_chars = len(prompt)
 

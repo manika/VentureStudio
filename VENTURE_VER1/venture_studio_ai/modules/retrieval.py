@@ -63,6 +63,6 @@ def retrieve_context(
         return []
 
     store = _get_store(docs)
-    hits = store.query(query, top_k=3)
+    hits = store.query(query, top_k=6)
     cache_manager.set_cache("query_cache", cache_key, hits)
     return hits

@@ -16,6 +16,7 @@ from . import (
     embedder,
     fast_indexer,
     smart_advisor,
+    web_search,
 )
 
 __all__ = [
@@ -33,4 +34,5 @@ __all__ = [
     "embedder",
     "fast_indexer",
     "smart_advisor",
+    "web_search",
 ]
