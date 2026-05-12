@@ -52,28 +52,29 @@ st.markdown("""
     padding: 1.5rem 2rem 3rem;
 }
 
-/* ── Top nav bar ─────────────────────────────────────────────────────────── */
-.logo-header {
-    background: #ffffff;
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    border-bottom: 2px solid #E5E7EB;
-    margin-bottom: 0;
-}
-.logo-header img { height: 64px; }
+/* ── Top nav bar (unified: logo + title in one dark bar) ─────────────────── */
 .top-nav {
     background: #1A2035;
-    padding: 10px 20px;
+    padding: 14px 24px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-top: 0;
-    margin-bottom: 14px;
-    border-radius: 0 0 8px 8px;
+    gap: 18px;
+    margin-bottom: 18px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
 }
-.top-nav-title { color: #ffffff; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.14em; }
-.top-nav-sub { color: #8B95A9; font-size: 0.72rem; letter-spacing: 0.05em; }
+.top-nav img { height: 80px; object-fit: contain; }
+.top-nav-sep { width: 1px; height: 38px; background: #2A4570; flex-shrink: 0; }
+.top-nav-text { display: flex; flex-direction: column; gap: 3px; }
+.top-nav-title { color: #ffffff; font-weight: 700; font-size: 1rem; letter-spacing: 0.12em; }
+.top-nav-sub   { color: #8B95A9; font-size: 0.95rem; letter-spacing: 0.04em; }
+/* Text-based fallback when logo image is absent */
+.top-nav-fallback {
+    width: 46px; height: 46px; background: #FF7F6E; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #ffffff; font-weight: 800; font-size: 1rem; flex-shrink: 0;
+    letter-spacing: 0.04em;
+}
 
 /* ── Breadcrumb ──────────────────────────────────────────────────────────── */
 .breadcrumb {
@@ -452,6 +453,55 @@ st.markdown("""
     background-color: #1E3050 !important;
     border-color: #2A4570 !important;
 }
+/* ── Sidebar section headers ─────────────────────────────────────────────── */
+[data-testid="stSidebar"] .sidebar-section-header {
+    font-size: 0.67rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.11em !important;
+    color: #64748B !important;
+    -webkit-text-fill-color: #64748B !important;
+    padding: 0.75rem 0 0.35rem !important;
+    border-top: 1px solid #1E3050 !important;
+    margin: 0 !important;
+}
+
+/* ── Advisory Response card ──────────────────────────────────────────────── */
+.response-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 2px solid #E5E7EB;
+    margin: 1.75rem 0 0;
+    padding-top: 1.1rem;
+}
+.response-header::before {
+    content: "";
+    display: block;
+    width: 4px;
+    height: 18px;
+    background: #FF7F6E;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.response-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #FF7F6E;
+}
+/* Card styling applied to the markdown block that immediately follows the header marker */
+[data-testid="stMarkdown"]:has(.response-header) + [data-testid="stMarkdown"] {
+    background: #FAFBFC;
+    border: 1px solid #E5E7EB;
+    border-left: 4px solid #FF7F6E;
+    border-radius: 0 12px 12px 0;
+    padding: 1.4rem 1.75rem 1.5rem;
+    margin-top: 0.6rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -481,8 +531,7 @@ if st.session_state.get("_last_company") != _company_label:
 # ---------------------------------------------------------------------------
 # Sidebar — Company Profile (shared across all tabs)
 # ---------------------------------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.markdown("**Company Profile**")
+st.sidebar.markdown('<div class="sidebar-section-header">Company Profile</div>', unsafe_allow_html=True)
 
 if "profile_company_name" not in st.session_state:
     st.session_state["profile_company_name"] = _company_label
@@ -518,7 +567,7 @@ _profile_banner = (
 # ---------------------------------------------------------------------------
 # Sidebar — Knowledge Sources
 # ---------------------------------------------------------------------------
-st.sidebar.markdown("---")
+st.sidebar.markdown('<div class="sidebar-section-header">Knowledge &amp; Documents</div>', unsafe_allow_html=True)
 with st.sidebar.expander("Knowledge Sources", expanded=True):
     use_founder = st.checkbox("Founder Startup Knowledge", value=True)
     use_company = st.checkbox("Selected Company Data", value=True)
@@ -581,7 +630,7 @@ with st.sidebar.expander("Index Management", expanded=False):
 # ---------------------------------------------------------------------------
 # Sidebar — Advanced
 # ---------------------------------------------------------------------------
-st.sidebar.markdown("---")
+st.sidebar.markdown('<div class="sidebar-section-header">Model Settings</div>', unsafe_allow_html=True)
 _llm_choice = st.sidebar.radio(
     "LLM Backend",
     ["Qwen (local)", "Claude (cloud)", "OpenAI (cloud)"],
@@ -602,16 +651,20 @@ debug_mode = st.sidebar.checkbox("Debug Mode", value=False)
 # ---------------------------------------------------------------------------
 # Main — Tabs
 # ---------------------------------------------------------------------------
-if _logo_b64:
-    st.markdown(
-        f'<div class="logo-header"><img src="data:image/png;base64,{_logo_b64}"></div>',
-        unsafe_allow_html=True,
-    )
+_logo_el = (
+    f'<img src="data:image/png;base64,{_logo_b64}">'
+    if _logo_b64
+    else '<div class="top-nav-fallback">VS</div>'
+)
 st.markdown(
-    '<div class="top-nav">'
-    '<span class="top-nav-title">VENTURE STUDIO AI</span>'
-    '<span class="top-nav-sub">Advisory Platform</span>'
-    '</div>',
+    f'<div class="top-nav">'
+    f'{_logo_el}'
+    f'<div class="top-nav-sep"></div>'
+    f'<div class="top-nav-text">'
+    f'<span class="top-nav-title">VENTURE STUDIO</span>'
+    f'<span class="top-nav-sub">AI Advisor</span>'
+    f'</div>'
+    f'</div>',
     unsafe_allow_html=True,
 )
 tab_standard, tab_smart, tab_docs = st.tabs(["Standard Advisor", "Smart Advisor", "Generate Documents"])
@@ -620,6 +673,13 @@ tab_standard, tab_smart, tab_docs = st.tabs(["Standard Advisor", "Smart Advisor"
 with tab_standard:
     st.markdown(_profile_banner, unsafe_allow_html=True)
     st.markdown('<div class="breadcrumb">Advisor &rsaquo; Standard</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="page-header">'
+        '<h2>Standard Advisor</h2>'
+        '<p>Ask questions and get AI-powered guidance grounded in your company and founder knowledge.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     user_query = st.text_area(
         "Describe your question or task",
@@ -660,6 +720,10 @@ with tab_standard:
 
             output = advisor_engine.format_output(response, docs)
 
+        st.markdown(
+            '<div class="response-header"><span class="response-label">Advisory Response</span></div>',
+            unsafe_allow_html=True,
+        )
         st.markdown(output)
 
         def _source_category(doc: dict) -> str:
@@ -709,9 +773,12 @@ with tab_standard:
 with tab_smart:
     st.markdown(_profile_banner, unsafe_allow_html=True)
     st.markdown('<div class="breadcrumb">Advisor &rsaquo; Smart</div>', unsafe_allow_html=True)
-    st.caption(
-        "Semantic search over the indexed parent company knowledge base. "
-        "All data is redacted before LLM processing. Single Qwen call per query."
+    st.markdown(
+        '<div class="page-header">'
+        '<h2>Smart Advisor</h2>'
+        '<p>Semantic search over the indexed knowledge base. All data is redacted before LLM processing.</p>'
+        '</div>',
+        unsafe_allow_html=True,
     )
 
     gr_query = st.text_area(
@@ -772,6 +839,10 @@ with tab_smart:
             _sa_log.markdown("✅ Done")
             _sa_status.update(label="Smart Advisor complete", state="complete", expanded=False)
 
+        st.markdown(
+            '<div class="response-header"><span class="response-label">Advisory Response</span></div>',
+            unsafe_allow_html=True,
+        )
         st.markdown(_sa_response)
 
         if _sa_meta.get("sources_used"):
@@ -930,15 +1001,19 @@ with tab_docs:
 
     # Previously generated files
     st.markdown(
-        '<div style="margin-top:2rem; border-top:2px solid #E5E7EB; padding-top:1.5rem;">'
+        '<div style="margin-top:2rem; border-top:2px solid #E5E7EB; padding-top:1.5rem; margin-bottom:0.5rem;">'
         '<div class="section-label">Previously Generated</div>'
-        '<div class="doc-table-header">'
-        '<span>File Name</span><span>Created</span><span>Type</span><span>Download</span>'
-        '</div>'
-        '<div class="doc-history-marker"></div>'
         '</div>',
         unsafe_allow_html=True,
     )
+    # Header row — must use the same column ratios as the data rows below
+    _h_name, _h_date, _h_badge, _h_dl = st.columns([4, 2, 1, 2])
+    _h_name.markdown('<p class="section-label" style="margin:0 0 0.25rem;">File Name</p>', unsafe_allow_html=True)
+    _h_date.markdown('<p class="section-label" style="margin:0 0 0.25rem;">Created</p>', unsafe_allow_html=True)
+    _h_badge.markdown('<p class="section-label" style="margin:0 0 0.25rem;">Type</p>', unsafe_allow_html=True)
+    _h_dl.markdown('<p class="section-label" style="margin:0 0 0.25rem;">Download</p>', unsafe_allow_html=True)
+    # Marker placed AFTER the header row so card styling only applies to data rows
+    st.markdown('<div class="doc-history-marker"></div>', unsafe_allow_html=True)
     report_dir = Path(__file__).parent / "outputs" / "advisor_reports"
     all_files = sorted(
         list(report_dir.glob("*.pdf")) + list(report_dir.glob("*.docx")) + list(report_dir.glob("*.xlsx")),
