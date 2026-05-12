@@ -45,35 +45,59 @@ st.set_page_config(page_title=APP_TITLE, layout="wide")
 
 st.markdown("""
 <style>
-/* ── Global page background ──────────────────────────────────────────────── */
-.stApp, [data-testid="stAppViewContainer"] { background: #EEF6F6; }
-.main .block-container {
-    max-width: 1080px;
-    padding: 1.5rem 2rem 3rem;
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+   Accent : #6366F1 indigo   Hover: #4F46E5   Light: #EEF2FF
+   Surface: #F1F5F9 slate    Cards: #ffffff
+   Sidebar: #0F172A slate-900
+   Text   : #0F172A / #64748B / #94A3B8
+   Border : #E2E8F0
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Global ──────────────────────────────────────────────────────────────── */
+.stApp, [data-testid="stAppViewContainer"] { background: #F1F5F9; }
+.main .block-container { max-width: 1100px; padding: 1.5rem 2rem 3rem; }
+
+/* ── Single unified page scroller ───────────────────────────────────────── */
+.stApp { overflow-y: auto !important; height: auto !important; }
+[data-testid="stAppViewContainer"] { height: auto !important; overflow: visible !important; }
+/* Remove the main content area's independent scroll */
+section[data-testid="stMain"],
+[data-testid="stAppViewBlockContainer"] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] > div:first-child {
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    position: sticky !important;
+    top: 0 !important;
+    align-self: flex-start !important;
 }
 
-/* ── Top nav bar (unified: logo + title in one dark bar) ─────────────────── */
+/* ── Top nav ─────────────────────────────────────────────────────────────── */
 .top-nav {
-    background: #1A2035;
+    background: #0F172A;
     padding: 14px 24px;
     display: flex;
     align-items: center;
     gap: 18px;
-    margin-bottom: 18px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
 }
 .top-nav img { height: 80px; object-fit: contain; }
-.top-nav-sep { width: 1px; height: 38px; background: #2A4570; flex-shrink: 0; }
+.top-nav-sep { width: 1px; height: 38px; background: #1E293B; flex-shrink: 0; }
 .top-nav-text { display: flex; flex-direction: column; gap: 3px; }
-.top-nav-title { color: #ffffff; font-weight: 700; font-size: 1rem; letter-spacing: 0.12em; }
-.top-nav-sub   { color: #8B95A9; font-size: 0.95rem; letter-spacing: 0.04em; }
-/* Text-based fallback when logo image is absent */
+.top-nav-title { color: #ffffff; font-weight: 700; font-size: 1.3rem; letter-spacing: 0.12em; }
+.top-nav-sub   { color: #94A3B8; font-size: 1.1rem; letter-spacing: 0.04em; }
 .top-nav-fallback {
-    width: 46px; height: 46px; background: #FF7F6E; border-radius: 10px;
+    width: 46px; height: 46px; background: #6366F1; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     color: #ffffff; font-weight: 800; font-size: 1rem; flex-shrink: 0;
-    letter-spacing: 0.04em;
 }
 
 /* ── Breadcrumb ──────────────────────────────────────────────────────────── */
@@ -81,7 +105,7 @@ st.markdown("""
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #9CA3AF;
+    color: #94A3B8;
     margin-bottom: 10px;
     margin-top: 2px;
 }
@@ -92,54 +116,50 @@ st.markdown("""
     align-items: center;
     gap: 0.55rem;
     background: #ffffff;
-    border: 1px solid #FFD5CE;
+    border: 1px solid #C7D2FE;
     border-radius: 999px;
     padding: 0.38rem 1.1rem;
     font-size: 0.84rem;
     color: #374151;
     margin-bottom: 1.4rem;
-    box-shadow: 0 1px 4px rgba(255,127,110,0.1);
+    box-shadow: 0 1px 4px rgba(99,102,241,0.1);
 }
-.profile-chip .chip-dot {
-    width: 8px; height: 8px;
-    background: #FF7F6E; border-radius: 50%; flex-shrink: 0;
-}
-.profile-chip strong { color: #121827; font-weight: 700; }
+.profile-chip .chip-dot { width: 8px; height: 8px; background: #6366F1; border-radius: 50%; flex-shrink: 0; }
+.profile-chip strong { color: #0F172A; font-weight: 700; }
 
-/* ── Section label (uppercase eyebrow text) ──────────────────────────────── */
+/* ── Section label ───────────────────────────────────────────────────────── */
 .section-label {
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.09em;
-    color: #9CA3AF;
+    color: #94A3B8;
     margin-bottom: 0.6rem;
 }
 
-/* ── Page header (Generate Documents tab) ────────────────────────────────── */
+/* ── Page header ─────────────────────────────────────────────────────────── */
 .page-header { margin-bottom: 1.5rem; }
-.page-header h2 { font-size: 1.25rem; font-weight: 800; color: #121827; margin: 0 0 0.2rem; }
-.page-header p  { font-size: 0.83rem; color: #6B7280; margin: 0; }
+.page-header h2 { font-size: 1.3rem; font-weight: 700; color: #0F172A; margin: 0 0 0.25rem; }
+.page-header p  { font-size: 0.85rem; color: #64748B; margin: 0; line-height: 1.55; }
 
-/* ── Tabs: clean underline nav, ALL CAPS ─────────────────────────────────── */
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
     gap: 0;
-    border-bottom: 2px solid #E5E7EB;
+    border-bottom: 2px solid #E2E8F0;
     background: transparent;
     padding-bottom: 0;
     margin-bottom: 0;
 }
 .stTabs [data-baseweb="tab"] {
-    padding: 0.65rem 1.5rem;
-    font-size: 0.78rem;
+    padding: 0.75rem 1.75rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    color: #6B7280;
+    color: #64748B;
     background: transparent;
     border-radius: 0;
     border-bottom: 3px solid transparent;
     margin-bottom: -2px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.01em;
 }
 .stTabs [aria-selected="true"] {
     color: #FF7F6E !important;
@@ -149,11 +169,11 @@ st.markdown("""
 }
 .stTabs [data-baseweb="tab-panel"] {
     background: #ffffff;
-    border: 1px solid #E5E7EB;
+    border: 1px solid #E2E8F0;
     border-top: none;
-    border-radius: 0 0 14px 14px;
-    padding: 1.75rem 1.75rem 2rem;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    border-radius: 0 0 16px 16px;
+    padding: 2rem 2.25rem 2.25rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07);
     margin-top: 0;
 }
 
@@ -164,7 +184,7 @@ st.markdown("""
     font-size: 0.875rem;
     letter-spacing: 0.01em;
     transition: all 0.15s ease;
-    padding: 0.48rem 1.3rem;
+    padding: 0.5rem 1.4rem;
     height: auto;
 }
 .stButton > button[kind="primary"] {
@@ -180,7 +200,7 @@ st.markdown("""
 }
 .stButton > button:not([kind="primary"]) {
     background: #ffffff;
-    border: 1.5px solid #E5E7EB;
+    border: 1.5px solid #E2E8F0;
     color: #374151;
 }
 .stButton > button:not([kind="primary"]):hover {
@@ -207,10 +227,10 @@ st.markdown("""
     box-shadow: 0 4px 12px rgba(255,127,110,0.35);
 }
 
-/* ── Expanders (main area) ───────────────────────────────────────────────── */
+/* ── Expanders ───────────────────────────────────────────────────────────── */
 .streamlit-expanderHeader {
-    background: #F9FAFB;
-    border: 1px solid #E5E7EB !important;
+    background: #F8FAFF;
+    border: 1px solid #E2E8F0 !important;
     border-radius: 8px;
     font-weight: 700;
     font-size: 0.78rem;
@@ -220,7 +240,7 @@ st.markdown("""
 }
 .streamlit-expanderContent {
     background: #ffffff;
-    border: 1px solid #E5E7EB;
+    border: 1px solid #E2E8F0;
     border-top: none;
     border-radius: 0 0 8px 8px;
 }
@@ -232,10 +252,10 @@ st.markdown("""
     letter-spacing: 0.07em;
 }
 
-/* ── Metric cards — dark header band ─────────────────────────────────────── */
+/* ── Metric cards — indigo top band ──────────────────────────────────────── */
 [data-testid="stMetric"] {
     background: #ffffff;
-    border: 1px solid #E5E7EB;
+    border: 1px solid #E2E8F0;
     border-radius: 10px;
     overflow: hidden;
     padding: 0 !important;
@@ -244,13 +264,13 @@ st.markdown("""
 [data-testid="stMetric"]::before {
     content: "";
     display: block;
-    background: #1A2035;
-    height: 5px;
+    background: #6366F1;
+    height: 4px;
     width: 100%;
 }
 [data-testid="stMetricLabel"] {
     padding: 0.6rem 1.1rem 0 !important;
-    color: #6B7280 !important;
+    color: #64748B !important;
     font-size: 0.68rem !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
@@ -258,85 +278,73 @@ st.markdown("""
 }
 [data-testid="stMetricValue"] {
     padding: 0.1rem 1.1rem 0.75rem !important;
-    color: #121827 !important;
+    color: #0F172A !important;
     font-weight: 700 !important;
     font-size: 1.6rem !important;
 }
 [data-testid="stMetricDelta"] { padding: 0 1.1rem 0.6rem !important; }
 
-/* ── Main content inputs — force white bg + dark text at every level ─────── */
-.main input,
-.main textarea {
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
+.main input, .main textarea {
     background-color: #ffffff !important;
-    color: #121827 !important;
-    -webkit-text-fill-color: #121827 !important;
-    border: 1.5px solid #E5E7EB !important;
+    color: #0F172A !important;
+    -webkit-text-fill-color: #0F172A !important;
+    border: 1.5px solid #E2E8F0 !important;
     border-radius: 8px !important;
     font-size: 0.9rem !important;
 }
-.main input:focus,
-.main textarea:focus {
-    border-color: #FF7F6E !important;
-    box-shadow: 0 0 0 3px rgba(255,127,110,0.12) !important;
+.main input:focus, .main textarea:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
 }
-/* Selectbox — every nested div that Streamlit generates */
 .main [data-baseweb="select"],
 .main [data-baseweb="select"] > div,
 .main [data-baseweb="select"] > div > div,
 .main [data-baseweb="select"] > div > div > div,
 .main [data-baseweb="select"] > div > div > div > div {
     background-color: #ffffff !important;
-    color: #121827 !important;
-    -webkit-text-fill-color: #121827 !important;
+    color: #0F172A !important;
+    -webkit-text-fill-color: #0F172A !important;
 }
 .main [data-baseweb="select"] > div:first-child {
-    border: 1.5px solid #E5E7EB !important;
+    border: 1.5px solid #E2E8F0 !important;
     border-radius: 8px !important;
     min-height: 42px;
 }
-.main [data-baseweb="select"] svg { color: #6B7280 !important; fill: #6B7280 !important; }
-/* Dropdown popover list */
-[data-baseweb="popover"] ul,
-[data-baseweb="popover"] li,
-[data-baseweb="menu"] ul,
-[data-baseweb="menu"] li {
+.main [data-baseweb="select"] svg { color: #64748B !important; fill: #64748B !important; }
+[data-baseweb="popover"] ul, [data-baseweb="popover"] li,
+[data-baseweb="menu"] ul,   [data-baseweb="menu"] li {
     background-color: #ffffff !important;
-    color: #121827 !important;
-    -webkit-text-fill-color: #121827 !important;
+    color: #0F172A !important;
+    -webkit-text-fill-color: #0F172A !important;
 }
-[data-baseweb="popover"] li:hover,
-[data-baseweb="menu"] li:hover {
-    background-color: #FFF5F3 !important;
+[data-baseweb="popover"] li:hover, [data-baseweb="menu"] li:hover {
+    background-color: #EEF2FF !important;
 }
 
-/* ── Radio options ───────────────────────────────────────────────────────── */
+/* ── Radio / labels ──────────────────────────────────────────────────────── */
 .main .stRadio label p, .main .stRadio label { color: #374151 !important; }
-.main .stRadio [data-testid="stWidgetLabel"] p { color: #121827 !important; font-weight: 600; }
-
-/* ── Form field labels — bolder, darker ──────────────────────────────────── */
+.main .stRadio [data-testid="stWidgetLabel"] p { color: #0F172A !important; font-weight: 600; }
 .main [data-testid="stWidgetLabel"] p,
 .main .stTextInput label,
 .main .stTextArea label,
 .main .stSelectbox label {
     font-weight: 600 !important;
-    color: #1F2937 !important;
+    color: #1E293B !important;
     font-size: 0.85rem !important;
 }
 
-/* ── Captions / muted ────────────────────────────────────────────────────── */
+/* ── Captions / alerts ───────────────────────────────────────────────────── */
 .stCaption p, [data-testid="stCaptionContainer"] p, .muted-caption {
-    color: #6B7280 !important;
+    color: #64748B !important;
     font-size: 0.8rem;
 }
-
-/* ── Alerts ──────────────────────────────────────────────────────────────── */
 [data-testid="stAlert"] { border-radius: 10px; }
 
-/* ── Previously Generated rows: target all stHorizontalBlock siblings      */
-/* that follow the doc-history-marker stMarkdown element                    */
+/* ── Previously Generated rows ──────────────────────────────────────────── */
 [data-testid="stMarkdown"]:has(.doc-history-marker) ~ [data-testid="stHorizontalBlock"] {
     background: #ffffff;
-    border: 1px solid #E5E7EB;
+    border: 1px solid #E2E8F0;
     border-radius: 10px;
     padding: 0.4rem 0.6rem;
     margin-bottom: 0.4rem;
@@ -345,11 +353,9 @@ st.markdown("""
     align-items: center;
 }
 [data-testid="stMarkdown"]:has(.doc-history-marker) ~ [data-testid="stHorizontalBlock"]:hover {
-    border-color: #FF7F6E;
-    box-shadow: 0 2px 10px rgba(255,127,110,0.12);
+    border-color: #6366F1;
+    box-shadow: 0 2px 10px rgba(99,102,241,0.12);
 }
-
-/* Column header row */
 .doc-table-header {
     display: grid;
     grid-template-columns: 1fr 130px 60px 110px;
@@ -359,30 +365,29 @@ st.markdown("""
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    color: #9CA3AF;
-    border-bottom: 2px solid #E5E7EB;
+    color: #94A3B8;
+    border-bottom: 2px solid #E2E8F0;
     margin-bottom: 0.5rem;
 }
 
-/* ── Sidebar — dark navy, tighter width ──────────────────────────────────── */
+/* ── Sidebar — deep slate ────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background-color: #0D1829 !important;
+    background-color: #0F172A !important;
     min-width: 240px !important;
     max-width: 260px !important;
 }
 [data-testid="stSidebar"] > div:first-child { width: 260px !important; }
 [data-testid="stSidebar"] * { color: #CBD5E1 !important; }
-[data-testid="stSidebar"] hr { border-color: #1E3050 !important; }
+[data-testid="stSidebar"] hr { border-color: #1E293B !important; }
 [data-testid="stSidebar"] .stMarkdown strong {
     color: #94A3B8 !important;
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.07em;
 }
-[data-testid="stSidebar"] input,
-[data-testid="stSidebar"] textarea {
-    background-color: #1E3050 !important;
-    border-color: #2A4570 !important;
+[data-testid="stSidebar"] input, [data-testid="stSidebar"] textarea {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
     color: #E2E8F0 !important;
     -webkit-text-fill-color: #E2E8F0 !important;
 }
@@ -391,29 +396,23 @@ st.markdown("""
 [data-testid="stSidebar"] [data-baseweb="select"] > div > div,
 [data-testid="stSidebar"] [data-baseweb="select"] > div > div > div,
 [data-testid="stSidebar"] [data-baseweb="select"] > div > div > div > div {
-    background-color: #1E3050 !important;
+    background-color: #1E293B !important;
     color: #E2E8F0 !important;
     -webkit-text-fill-color: #E2E8F0 !important;
 }
-[data-testid="stSidebar"] [data-baseweb="select"] > div:first-child {
-    border-color: #2A4570 !important;
-}
-[data-testid="stSidebar"] [data-baseweb="select"] svg {
-    color: #94A3B8 !important;
-    fill: #94A3B8 !important;
-}
+[data-testid="stSidebar"] [data-baseweb="select"] > div:first-child { border-color: #334155 !important; }
+[data-testid="stSidebar"] [data-baseweb="select"] svg { color: #94A3B8 !important; fill: #94A3B8 !important; }
 [data-testid="stSidebar"] .stCheckbox label,
 [data-testid="stSidebar"] .stRadio label { color: #CBD5E1 !important; }
 [data-testid="stSidebar"] .stButton > button {
-    background: #1E3050; border: 1px solid #2A4570; color: #CBD5E1;
+    background: #1E293B; border: 1px solid #334155; color: #CBD5E1;
 }
-[data-testid="stSidebar"] .stButton > button:hover { border-color: #FF7F6E; color: #FF7F6E; }
-/* Expander headers — old and new Streamlit class names */
+[data-testid="stSidebar"] .stButton > button:hover { border-color: #818CF8; color: #818CF8; }
 [data-testid="stSidebar"] .streamlit-expanderHeader,
 [data-testid="stSidebar"] [data-testid="stExpander"] summary,
 [data-testid="stSidebar"] details summary {
-    background-color: #1E3050 !important;
-    border: 1px solid #2A4570 !important;
+    background-color: #1E293B !important;
+    border: 1px solid #334155 !important;
     border-radius: 8px !important;
     color: #CBD5E1 !important;
     -webkit-text-fill-color: #CBD5E1 !important;
@@ -423,46 +422,37 @@ st.markdown("""
     font-weight: 700 !important;
 }
 [data-testid="stSidebar"] [data-testid="stExpander"] summary:hover,
-[data-testid="stSidebar"] details summary:hover {
-    background-color: #243A60 !important;
-}
+[data-testid="stSidebar"] details summary:hover { background-color: #273549 !important; }
 [data-testid="stSidebar"] [data-testid="stExpander"] summary span,
 [data-testid="stSidebar"] [data-testid="stExpander"] summary p,
 [data-testid="stSidebar"] details summary span {
-    color: #CBD5E1 !important;
-    -webkit-text-fill-color: #CBD5E1 !important;
+    color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important;
 }
 [data-testid="stSidebar"] [data-testid="stExpander"] summary svg,
-[data-testid="stSidebar"] details summary svg {
-    color: #94A3B8 !important;
-    fill: #94A3B8 !important;
-}
+[data-testid="stSidebar"] details summary svg { color: #94A3B8 !important; fill: #94A3B8 !important; }
 [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"],
 [data-testid="stSidebar"] [data-testid="stFileUploader"] section,
 [data-testid="stSidebar"] [data-testid="stFileUploader"] > div {
-    background-color: #1A2E4A !important;
-    border-color: #2A4570 !important;
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
     border-radius: 8px !important;
 }
 [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] *,
 [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
-    color: #94A3B8 !important;
-    -webkit-text-fill-color: #94A3B8 !important;
+    color: #94A3B8 !important; -webkit-text-fill-color: #94A3B8 !important;
 }
 [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
-    background-color: #1E3050 !important;
-    border-color: #2A4570 !important;
+    background-color: #1E293B !important; border-color: #334155 !important;
 }
-/* ── Sidebar section headers ─────────────────────────────────────────────── */
 [data-testid="stSidebar"] .sidebar-section-header {
     font-size: 0.67rem !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.11em !important;
-    color: #64748B !important;
-    -webkit-text-fill-color: #64748B !important;
+    color: #475569 !important;
+    -webkit-text-fill-color: #475569 !important;
     padding: 0.75rem 0 0.35rem !important;
-    border-top: 1px solid #1E3050 !important;
+    border-top: 1px solid #1E293B !important;
     margin: 0 !important;
 }
 
@@ -471,7 +461,7 @@ st.markdown("""
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    border-top: 2px solid #E5E7EB;
+    border-top: 2px solid #E2E8F0;
     margin: 1.75rem 0 0;
     padding-top: 1.1rem;
 }
@@ -480,7 +470,7 @@ st.markdown("""
     display: block;
     width: 4px;
     height: 18px;
-    background: #FF7F6E;
+    background: #6366F1;
     border-radius: 2px;
     flex-shrink: 0;
 }
@@ -489,13 +479,12 @@ st.markdown("""
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #FF7F6E;
+    color: #6366F1;
 }
-/* Card styling applied to the markdown block that immediately follows the header marker */
 [data-testid="stMarkdown"]:has(.response-header) + [data-testid="stMarkdown"] {
-    background: #FAFBFC;
-    border: 1px solid #E5E7EB;
-    border-left: 4px solid #FF7F6E;
+    background: #FAFBFF;
+    border: 1px solid #E2E8F0;
+    border-left: 4px solid #6366F1;
     border-radius: 0 12px 12px 0;
     padding: 1.4rem 1.75rem 1.5rem;
     margin-top: 0.6rem;
